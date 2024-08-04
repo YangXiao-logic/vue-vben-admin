@@ -55,7 +55,7 @@ function createRequestClient(baseURL: string) {
     const { data: responseData, status } = response;
 
     const { code, data, message: msg } = responseData;
-    if (status >= 200 && status < 400 && code === 0) {
+    if (status >= 200 && status < 400 && code === 200) {
       return data;
     }
     throw new Error(msg);

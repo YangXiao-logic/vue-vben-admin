@@ -9,7 +9,7 @@ import { resetAllStores, useAccessStore, useUserStore } from '@vben/stores';
 
 import { defineStore } from 'pinia';
 
-import { getAccessCodes, getUserInfo, login } from '#/api';
+import { getUserInfo, login } from '#/api';
 import { $t } from '#/locales';
 import { notification } from '#/naive';
 
@@ -42,15 +42,15 @@ export const useAuthStore = defineStore('auth', () => {
         accessStore.setRefreshToken(refreshToken);
 
         // 获取用户信息并存储到 accessStore 中
-        const [fetchUserInfoResult, accessCodes] = await Promise.all([
+        const [fetchUserInfoResult] = await Promise.all([
           fetchUserInfo(),
-          getAccessCodes(),
+          // getAccessCodes(),
         ]);
 
         userInfo = fetchUserInfoResult;
 
         userStore.setUserInfo(userInfo);
-        accessStore.setAccessCodes(accessCodes);
+        // accessStore.setAccessCodes(accessCodes);
 
         if (accessStore.loginExpired) {
           accessStore.setLoginExpired(false);
