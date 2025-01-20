@@ -50,7 +50,7 @@ interface HttpResponse<T = any> {
    * 0 表示成功 其他表示失败
    * 0 means success, others means fail
    */
-  code: number;
+  status: number;
   data: T;
   message: string;
 }

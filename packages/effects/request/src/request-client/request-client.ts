@@ -63,7 +63,7 @@ class RequestClient {
           return response;
         }
 
-        const { code, data } = responseData;
+        const { status: code, data } = responseData;
 
         if (status >= 200 && status < 400 && code === 0) {
           return config.responseReturn === 'body' ? responseData : data;

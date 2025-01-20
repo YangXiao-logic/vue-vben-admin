@@ -16,13 +16,24 @@ export namespace AuthApi {
     data: string;
     status: number;
   }
+
+  export interface AuthPasswordParam {
+    password: string;
+    account: string;
+  }
+
+  export interface AuthVo {
+    roleList: string[];
+    tokenTimeout: number;
+    tokenValue: string;
+  }
 }
 
 /**
  * 登录
  */
-export async function loginApi(data: AuthApi.LoginParams) {
-  return requestClient.post<AuthApi.LoginResult>('/auth/login', data);
+export async function loginApi(data: AuthApi.AuthPasswordParam) {
+  return requestClient.post<AuthApi.AuthVo>('/auth/login/by-password', data);
 }
 
 /**
