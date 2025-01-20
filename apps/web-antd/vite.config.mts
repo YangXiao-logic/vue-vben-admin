@@ -16,7 +16,12 @@ export default defineConfig(async () => {
         },
         '/api/auth': {
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api/, ''),
+          rewrite: (path) => {
+            const rewrittenPath = path.replace(/^\/api/, '');
+            console.log('原始路径:', path);
+            console.log('重写后路径:', rewrittenPath);
+            return rewrittenPath;
+          },
           target: "http://47.113.103.202:8010/",
           ws: true,
         }

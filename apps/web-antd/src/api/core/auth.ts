@@ -1,4 +1,4 @@
-import { baseRequestClient, requestClient } from '#/api/request';
+import { anthRequestClient, baseRequestClient } from '#/api/request';
 
 export namespace AuthApi {
   /** 登录接口参数 */
@@ -33,7 +33,10 @@ export namespace AuthApi {
  * 登录
  */
 export async function loginApi(data: AuthApi.AuthPasswordParam) {
-  return requestClient.post<AuthApi.AuthVo>('/auth/login/by-password', data);
+  return anthRequestClient.post<AuthApi.AuthVo>(
+    '/auth/login/by-password',
+    data,
+  );
 }
 
 /**
@@ -58,5 +61,5 @@ export async function logoutApi() {
  * 获取用户权限码
  */
 export async function getAccessCodesApi() {
-  return requestClient.get<string[]>('/auth/codes');
+  return [];
 }
