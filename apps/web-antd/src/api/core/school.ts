@@ -13,6 +13,30 @@ export namespace SchoolApi {
     schoolId: string;
     emailRule: string;
   }
+
+  /** 字段规则接口 */
+  export interface Rule {
+    errorMessage: string;
+    required: boolean;
+    pattern?: string;
+    maxLength?: number;
+    minLength?: number;
+  }
+
+  /** 表单字段接口 */
+  export interface FormField {
+    name: string;
+    label: string;
+    ruleList: Rule[];
+    placeholder: string;
+  }
+
+  /** 动态课程表单接口 */
+  export interface DynamicCourseForm {
+    dynamicCourseFormId: string;
+    fields: FormField[];
+    schoolId: string;
+  }
 }
 
 /**
@@ -71,4 +95,34 @@ export async function getEmailRuleListApi(schoolId: string) {
       params: { schoolId },
     },
   );
+}
+
+/**
+ * 更新课程名称规则
+ */
+export async function upsertCourseNameRuleApi(
+  data: SchoolApi.DynamicCourseForm,
+) {
+  return requestClient.post('/school/upsert-course-name-rule', data);
+}
+
+/**
+ * 获取课程名称规则
+ */
+export async function getCourseNameRuleApi(schoolId: string) {
+  return requestClient.get<SchoolApi.DynamicCourseForm>(
+    '/school/get-course-name-rule',
+    {
+      params: { schoolId },
+    },
+  );
+}
+
+/**
+ * 获取学校根集合ID
+ */
+export async function getSchoolRootCollectionIdApi(schoolId: string) {
+  return requestClient.get<string>('/school/get-school-root-collection-id', {
+    params: { schoolId },
+  });
 }

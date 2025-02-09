@@ -1,4 +1,4 @@
-import { anthRequestClient, baseRequestClient } from '#/api/request';
+import { requestClient } from '#/api/request';
 
 export namespace AuthApi {
   /** 登录接口参数 */
@@ -33,17 +33,14 @@ export namespace AuthApi {
  * 登录
  */
 export async function loginApi(data: AuthApi.AuthPasswordParam) {
-  return anthRequestClient.post<AuthApi.AuthVo>(
-    '/auth/login/by-password',
-    data,
-  );
+  return requestClient.post<AuthApi.AuthVo>('/auth/login/by-password', data);
 }
 
 /**
  * 刷新accessToken
  */
 export async function refreshTokenApi() {
-  return baseRequestClient.post<AuthApi.RefreshTokenResult>('/auth/refresh', {
+  return requestClient.post<AuthApi.RefreshTokenResult>('/auth/refresh', {
     withCredentials: true,
   });
 }
@@ -52,7 +49,7 @@ export async function refreshTokenApi() {
  * 退出登录
  */
 export async function logoutApi() {
-  return baseRequestClient.post('/auth/logout', {
+  return requestClient.post('/auth/logout', {
     withCredentials: true,
   });
 }
