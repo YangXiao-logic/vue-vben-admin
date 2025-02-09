@@ -3,8 +3,8 @@ import { requestClient } from '#/api/request';
 export namespace SchoolApi {
   /** 学校信息接口 */
   export interface School {
-    id?: string;
-    schoolName: string;
+    schoolId: string;
+    name: string;
   }
 
   /** 学校邮箱规则接口 */
