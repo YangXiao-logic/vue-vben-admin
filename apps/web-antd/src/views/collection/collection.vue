@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 
 import {
   Button,
@@ -33,7 +33,7 @@ const collectionRankRule = ref<CollectionApi.CollectionRankRule>(
 
 const columns = [
   { title: '文件夹ID', dataIndex: 'collectionId' },
-  { title: '文件夹名称', dataIndex: 'title' },
+  { title: '名称', dataIndex: 'title' },
   { title: '创建时间', dataIndex: 'createTime' },
   { title: '类型', dataIndex: 'type' },
   {
@@ -43,6 +43,7 @@ const columns = [
     scopedSlots: { customRender: 'action' },
   },
 ];
+
 const fetchCollections = async () => {
   if (!collectionId.value || !collectionRankRule.value) {
     if (collectionId.value) {
@@ -62,6 +63,15 @@ const fetchCollections = async () => {
     message.error(`${error?.message}`);
   }
 };
+// 监控 collectionId 和 collectionRankRule 的变化
+watch(
+  [collectionId, collectionRankRule],
+  ([newCollectionId, newCollectionRankRule]) => {
+    if (newCollectionId && newCollectionRankRule) {
+      fetchCollections();
+    }
+  },
+);
 
 const insertCollection = async () => {
   await insertCollectionApi(newCollectionName.value, parentCollectionId.value);
@@ -82,14 +92,24 @@ const closeEditModal = () => {
 };
 
 const editCollection = async () => {
-  await editCollectionApi(editCollectionName.value, currentEditId.value);
-  closeEditModal();
-  fetchCollections();
+  try {
+    await editCollectionApi(editCollectionName.value, currentEditId.value);
+    message.success('修改成功');
+    closeEditModal();
+    fetchCollections();
+  } catch (error) {
+    message.error(`失败了，${error?.message}`);
+  }
 };
 
 const deleteCollection = async (id) => {
-  await deleteCollectionApi(id);
-  fetchCollections();
+  try {
+    await deleteCollectionApi(id);
+    message.success('删除成功');
+    fetchCollections();
+  } catch (error) {
+    message.error(`失败了，${error?.message}`);
+  }
 };
 
 onMounted(() => {
@@ -115,7 +135,7 @@ onMounted(() => {
       />
       <Button type="primary" @click="insertCollection">添加文件夹</Button>
     </div>
-    <h1>查询文件夹</h1>
+    <h1>查询文件夹（修改条件自动查询）</h1>
 
     <div style="margin-bottom: 16px">
       <Input
@@ -136,9 +156,6 @@ onMounted(() => {
         <Select.Option value="BY_NAME_ASC">名称升序</Select.Option>
         <Select.Option value="BY_POPULARITY_DESC">受欢迎程度降序</Select.Option>
       </Select>
-      <Button type="primary" @click="fetchCollections">
-        查询文件夹内容（点击才能查哦）
-      </Button>
     </div>
     <Table :data-source="collections" :columns="columns" row-key="collectionId">
       <template #bodyCell="{ column, record }">
@@ -159,10 +176,10 @@ onMounted(() => {
     >
       <Form>
         <FormItem
-          label="文件夹名称"
-          :rules="[{ required: true, message: '请输入文件夹名称' }]"
+          label="名称"
+          :rules="[{ required: true, message: '请输入名称' }]"
         >
-          <Input v-model="editCollectionName" />
+          <Input v-model:value="editCollectionName" />
         </FormItem>
       </Form>
     </Modal>

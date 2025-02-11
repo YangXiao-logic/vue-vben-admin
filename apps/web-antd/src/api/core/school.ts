@@ -33,7 +33,7 @@ export namespace SchoolApi {
 
   /** 动态课程表单接口 */
   export interface DynamicCourseForm {
-    dynamicCourseFormId: string;
+    dynamicCourseFormId?: string;
     fields: FormField[];
     schoolId: string;
   }
@@ -98,12 +98,19 @@ export async function getEmailRuleListApi(schoolId: string) {
 }
 
 /**
+ * 绑定课程名称规则
+ */
+export async function bindCourseNameRuleApi(data: SchoolApi.DynamicCourseForm) {
+  return requestClient.post('/school/bind-course-name-rule', data);
+}
+
+/**
  * 更新课程名称规则
  */
-export async function upsertCourseNameRuleApi(
+export async function updateCourseNameRuleApi(
   data: SchoolApi.DynamicCourseForm,
 ) {
-  return requestClient.post('/school/upsert-course-name-rule', data);
+  return requestClient.post('/school/update-course-name-rule', data);
 }
 
 /**

@@ -19,6 +19,7 @@ import {
 
 import {
   addSchoolApi,
+  bindCourseNameRuleApi,
   bindEmailRuleApi,
   deleteEmailRuleApi,
   editEmailRuleApi,
@@ -26,7 +27,7 @@ import {
   getCourseNameRuleApi,
   getEmailRuleListApi,
   getSchoolListApi,
-  upsertCourseNameRuleApi,
+  updateCourseNameRuleApi,
 } from '#/api/core/school';
 
 // 表格加载状态
@@ -88,31 +89,36 @@ const fetchCourseNameRule = async () => {
   if (selectedSchoolId.value) {
     const data = await getCourseNameRuleApi(selectedSchoolId.value);
     courseNameRule.value = data;
-    fields.value = data.fields.map((item) => ({ ...item, isEditing: false }));
+    fields.value =
+      data?.fields.map((item) => ({ ...item, isEditing: false })) || [];
   }
 };
 
 // 更新课程名称规则
 const handleUpsertCourseNameRule = async () => {
   const dynamicCourseForm: SchoolApi.DynamicCourseForm = {
-    dynamicCourseFormId: courseNameRule.value?.dynamicCourseFormId || '', // 传入 dynamicCourseFormId
-    fields: fields.value, // 只传入当前字段
-    schoolId: selectedSchoolId.value as string,
-  };
-  await upsertCourseNameRuleApi(dynamicCourseForm);
-  fetchCourseNameRule(); // 重新获取课程名称规则
-};
-
-// 添加删除功能
-const handleDeleteCourseNameRule = async (index: number) => {
-  fields.value.splice(index, 1);
-  const dynamicCourseForm: SchoolApi.DynamicCourseForm = {
-    dynamicCourseFormId: courseNameRule.value?.dynamicCourseFormId as string, // 传入要删除的 ID
     fields: fields.value,
     schoolId: selectedSchoolId.value as string,
   };
-  await upsertCourseNameRuleApi(dynamicCourseForm); // 通过同一个接口进行删除
+
+  await (courseNameRule.value?.fields.length
+    ? updateCourseNameRuleApi(dynamicCourseForm)
+    : bindCourseNameRuleApi(dynamicCourseForm));
+
   fetchCourseNameRule(); // 重新获取课程名称规则
+};
+
+// 删除课程名称规则字段
+const handleDeleteCourseNameRule = async (index: number) => {
+  fields.value.splice(index, 1);
+  const dynamicCourseForm: SchoolApi.DynamicCourseForm = {
+    fields: fields.value,
+    schoolId: selectedSchoolId.value as string,
+  };
+
+  await updateCourseNameRuleApi(dynamicCourseForm);
+
+  fetchCourseNameRule();
 };
 
 watch(selectedSchoolId, () => {
@@ -240,13 +246,6 @@ const editField = (index: number) => {
     console.error(`Field at index ${index} is undefined.`);
   }
 };
-
-// 通用输入处理函数
-const handleInputChange = (index: number, fieldName: string, value: string) => {
-  if (fields.value[index]) {
-    fields.value[index][fieldName] = value; // 更新字段的指定属性
-  }
-};
 </script>
 
 <template>
@@ -267,7 +266,8 @@ const handleInputChange = (index: number, fieldName: string, value: string) => {
             {{ school.name }}
           </Select.Option>
         </Select>
-
+      </div>
+      <div style="display: flex; gap: 15px; align-items: center" class="mt-4">
         <Input
           :value="newSchoolName"
           placeholder="输入新学校名称"
@@ -358,54 +358,38 @@ const handleInputChange = (index: number, fieldName: string, value: string) => {
           <div class="mb-2 font-medium">当前课程名称规则：</div>
           <Spin v-if="loading" />
           <List v-else-if="fields?.length" bordered>
-            <List.Item v-for="(field, index) in fields" :key="field.name">
+            <List.Item v-for="(field, index) in fields" :key="index">
               <div class="flex flex-col gap-2">
                 <div class="flex flex-wrap gap-2">
                   <div class="flex-1">
-                    <strong>字段名称:</strong>
-                    <Input
-                      :value="field.name || ''"
-                      placeholder="name"
-                      style="width: 100%"
-                      :disabled="!field.isEditing"
-                      @input="
-                        (e) =>
-                          handleInputChange(index, 'name', e.target.value || '')
-                      "
-                    />
-                  </div>
-                  <div class="flex-1">
                     <strong>显示标签:</strong>
                     <Input
-                      :value="field.label || ''"
+                      :value="field.label"
                       placeholder="label"
                       style="width: 100%"
                       :disabled="!field.isEditing"
-                      @input="
-                        (e) =>
-                          handleInputChange(
-                            index,
-                            'label',
-                            e.target.value || '',
-                          )
-                      "
+                      @update:value="(val) => (field.label = val)"
                     />
                   </div>
                   <div class="flex-1">
+                    <strong>字段名称:</strong>
+                    <Input
+                      :value="field.name"
+                      placeholder="name"
+                      style="width: 100%"
+                      :disabled="!field.isEditing"
+                      @update:value="(val) => (field.name = val)"
+                    />
+                  </div>
+
+                  <div class="flex-1">
                     <strong>占位提示:</strong>
                     <Input
-                      :value="field.placeholder || ''"
+                      :value="field.placeholder"
                       placeholder="placeholder"
                       style="width: 100%"
                       :disabled="!field.isEditing"
-                      @input="
-                        (e) =>
-                          handleInputChange(
-                            index,
-                            'placeholder',
-                            e.target.value || '',
-                          )
-                      "
+                      @update:value="(val) => (field.placeholder = val)"
                     />
                   </div>
                 </div>
@@ -414,7 +398,7 @@ const handleInputChange = (index: number, fieldName: string, value: string) => {
                   <div class="ml-4 list-inside list-disc">
                     <div
                       v-for="(rule, ruleIndex) in field.ruleList"
-                      :key="rule.errorMessage"
+                      :key="ruleIndex"
                     >
                       <div
                         class="flex flex-wrap items-center justify-center gap-2"
@@ -422,18 +406,12 @@ const handleInputChange = (index: number, fieldName: string, value: string) => {
                         <div class="flex flex-1 items-center justify-center">
                           <strong class="w-[120px]">错误提示信息:</strong>
                           <Input
-                            :value="rule.errorMessage || ''"
+                            :value="rule.errorMessage"
                             placeholder="输入错误提示信息"
                             :disabled="!field.isEditing"
-                            @input="
-                              (e) =>
-                                handleInputChange(
-                                  index,
-                                  'ruleList',
-                                  ruleIndex,
-                                  'errorMessage',
-                                  e.target.value || '',
-                                )
+                            @update:value="
+                              (val) =>
+                                (field.ruleList[ruleIndex].errorMessage = val)
                             "
                           />
                         </div>
@@ -451,34 +429,35 @@ const handleInputChange = (index: number, fieldName: string, value: string) => {
                         >
                           <strong>最小长度:</strong>
                           <InputNumber
-                            v-model:value="rule.minLength"
+                            :value="rule.minLength"
                             :min="0"
                             :max="rule.maxLength"
                             :disabled="!field.isEditing"
+                            @update:value="
+                              (val) =>
+                                (field.ruleList[ruleIndex].minLength = val)
+                            "
                           />
                           <strong>最大长度:</strong>
                           <InputNumber
-                            v-model:value="rule.maxLength"
+                            :value="rule.maxLength"
                             :min="rule.minLength"
                             :disabled="!field.isEditing"
+                            @update:value="
+                              (val) =>
+                                (field.ruleList[ruleIndex].maxLength = val)
+                            "
                           />
                         </div>
                         <div class="flex-1">
                           <strong>正则表达式:</strong>
                           <Input
-                            :value="rule.pattern || ''"
+                            :value="rule.pattern"
                             placeholder="输入正则表达式"
                             style="width: 100%"
                             :disabled="!field.isEditing"
-                            @input="
-                              (e) =>
-                                handleInputChange(
-                                  index,
-                                  'ruleList',
-                                  ruleIndex,
-                                  'pattern',
-                                  e.target.value || '',
-                                )
+                            @update:value="
+                              (val) => (field.ruleList[ruleIndex].pattern = val)
                             "
                           />
                         </div>
