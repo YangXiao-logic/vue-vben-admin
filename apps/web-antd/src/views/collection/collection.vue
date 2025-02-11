@@ -9,6 +9,7 @@ import {
   message,
   Modal,
   Select,
+  Spin,
   Table,
 } from 'ant-design-vue';
 
@@ -30,6 +31,7 @@ const collectionId = ref('1818486244678901762');
 const collectionRankRule = ref<CollectionApi.CollectionRankRule>(
   'BY_CREATE_TIME_DESC',
 );
+const loading = ref(false);
 
 const columns = [
   { title: '文件夹ID', dataIndex: 'collectionId' },
@@ -54,6 +56,7 @@ const fetchCollections = async () => {
     return;
   }
   try {
+    loading.value = true;
     const data = await getCollectionContent(
       collectionId.value,
       collectionRankRule.value,
@@ -61,9 +64,11 @@ const fetchCollections = async () => {
     collections.value = data;
   } catch (error) {
     message.error(`${error?.message}`);
+  } finally {
+    loading.value = false;
   }
 };
-// 监控 collectionId 和 collectionRankRule 的变化
+
 watch(
   [collectionId, collectionRankRule],
   ([newCollectionId, newCollectionRankRule]) => {
@@ -74,10 +79,18 @@ watch(
 );
 
 const insertCollection = async () => {
-  await insertCollectionApi(newCollectionName.value, parentCollectionId.value);
-  newCollectionName.value = '';
-  parentCollectionId.value = '';
-  fetchCollections();
+  try {
+    await insertCollectionApi(
+      newCollectionName.value,
+      parentCollectionId.value,
+    );
+    // newCollectionName.value = '';
+    // parentCollectionId.value = '';
+    message.success('添加成功，好奇的话在下面查查');
+    fetchCollections();
+  } catch (error) {
+    message.error(`失败了，${error?.message}`);
+  }
 };
 
 const showEditModal = (record) => {
@@ -156,8 +169,16 @@ onMounted(() => {
         <Select.Option value="BY_NAME_ASC">名称升序</Select.Option>
         <Select.Option value="BY_POPULARITY_DESC">受欢迎程度降序</Select.Option>
       </Select>
+      <Button type="primary" @click="fetchCollections"> 查询 </Button>
     </div>
-    <Table :data-source="collections" :columns="columns" row-key="collectionId">
+
+    <Spin v-if="loading" />
+    <Table
+      v-else
+      :data-source="collections"
+      :columns="columns"
+      row-key="collectionId"
+    >
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'action'">
           <Button @click="showEditModal(record)">编辑</Button>
