@@ -35,7 +35,7 @@ const loading = ref(false);
 // 学校列表数据
 const schoolList = ref<SchoolApi.School[]>([]);
 // 选中的学校ID
-const selectedSchoolId = ref<null | string>(null);
+const selectedSchoolId = ref<SelectValue>(null);
 // 学校邮箱规则列表数据
 const emailRuleList = ref<SchoolApi.SchoolEmailRule[]>([]);
 // 新学校名称
@@ -47,7 +47,7 @@ const newEmailRule = ref<string>('');
 // 编辑邮箱规则
 const editEmailRule = ref<string>('');
 // 选中的邮箱规则ID
-const selectedEmailRuleId = ref<null | string>(null);
+const selectedEmailRuleId = ref<SelectValue>(null);
 
 // 课程名称规则相关的状态
 const courseNameRule = ref<null | SchoolApi.DynamicCourseForm>(null);
@@ -59,7 +59,7 @@ const fields = ref<
     placeholder: string;
     ruleList: SchoolApi.Rule[];
   }[]
->([]); // 用户输入的字段
+>([]);
 
 // 获取学校列表
 const fetchSchoolList = async () => {
@@ -90,22 +90,32 @@ const fetchCourseNameRule = async () => {
     const data = await getCourseNameRuleApi(selectedSchoolId.value);
     courseNameRule.value = data;
     fields.value =
-      data?.fields.map((item) => ({ ...item, isEditing: false })) || [];
+      data?.fields?.map((item) => ({ ...item, isEditing: false })) || [];
   }
 };
 
 // 更新课程名称规则
 const handleUpsertCourseNameRule = async () => {
   const dynamicCourseForm: SchoolApi.DynamicCourseForm = {
-    fields: fields.value,
+    fields: fields.value.map((field) => ({
+      ...field,
+      ruleList: field.ruleList || [],
+    })),
     schoolId: selectedSchoolId.value as string,
   };
 
-  await (courseNameRule.value?.fields.length
-    ? updateCourseNameRuleApi(dynamicCourseForm)
-    : bindCourseNameRuleApi(dynamicCourseForm));
-
-  fetchCourseNameRule(); // 重新获取课程名称规则
+  try {
+    await (courseNameRule.value?.dynamicCourseFormId
+      ? updateCourseNameRuleApi({
+          ...dynamicCourseForm,
+          dynamicCourseFormId: courseNameRule.value.dynamicCourseFormId,
+        })
+      : bindCourseNameRuleApi(dynamicCourseForm));
+    message.success('保存成功');
+    fetchCourseNameRule();
+  } catch (error) {
+    console.error(error);
+  }
 };
 
 // 删除课程名称规则字段
@@ -246,6 +256,35 @@ const editField = (index: number) => {
     console.error(`Field at index ${index} is undefined.`);
   }
 };
+
+// 修改添加规则的函数，添加编辑状态检查
+const addRule = (fieldIndex: number) => {
+  if (!fields.value[fieldIndex].isEditing) {
+    message.warning('请先点击编辑按钮');
+    return;
+  }
+
+  if (!fields.value[fieldIndex].ruleList) {
+    fields.value[fieldIndex].ruleList = [];
+  }
+
+  fields.value[fieldIndex].ruleList.push({
+    errorMessage: '',
+    required: false,
+    pattern: '',
+    maxLength: undefined,
+    minLength: undefined,
+  });
+};
+
+// 修改删除规则的函数，添加编辑状态检查
+const deleteRule = (fieldIndex: number, ruleIndex: number) => {
+  if (!fields.value[fieldIndex].isEditing) {
+    message.warning('请先点击编辑按钮');
+    return;
+  }
+  fields.value[fieldIndex].ruleList.splice(ruleIndex, 1);
+};
 </script>
 
 <template>
@@ -351,13 +390,10 @@ const editField = (index: number) => {
 
     <Card title="课程名称规则管理" class="mb-5">
       <div class="flex flex-col gap-4">
-        <div class="flex items-center gap-4">
-          <Button type="primary" @click="addField">添加字段</Button>
-        </div>
         <div class="mt-4">
           <div class="mb-2 font-medium">当前课程名称规则：</div>
           <Spin v-if="loading" />
-          <List v-else-if="fields?.length" bordered>
+          <List v-if="fields.length > 0" bordered>
             <List.Item v-for="(field, index) in fields" :key="index">
               <div class="flex flex-col gap-2">
                 <div class="flex flex-wrap gap-2">
@@ -394,12 +430,36 @@ const editField = (index: number) => {
                   </div>
                 </div>
                 <div v-if="field.ruleList?.length">
-                  <strong>验证规则:</strong>
+                  <div class="flex items-center justify-between">
+                    <strong>验证规则:</strong>
+                    <Button
+                      type="primary"
+                      size="small"
+                      :disabled="!field.isEditing"
+                      @click="() => addRule(index)"
+                    >
+                      添加规则
+                    </Button>
+                  </div>
                   <div class="ml-4 list-inside list-disc">
                     <div
                       v-for="(rule, ruleIndex) in field.ruleList"
                       :key="ruleIndex"
+                      class="mb-4 border-b pb-4 last:border-b-0"
                     >
+                      <div class="mb-2 flex items-center justify-between">
+                        <span class="text-gray-500"
+                          >规则 {{ ruleIndex + 1 }}</span
+                        >
+                        <Button
+                          danger
+                          size="small"
+                          :disabled="!field.isEditing"
+                          @click="() => deleteRule(index, ruleIndex)"
+                        >
+                          删除规则
+                        </Button>
+                      </div>
                       <div
                         class="flex flex-wrap items-center justify-center gap-2"
                       >
@@ -434,7 +494,7 @@ const editField = (index: number) => {
                             :max="rule.maxLength"
                             :disabled="!field.isEditing"
                             @update:value="
-                              (val) =>
+                              (val: number) =>
                                 (field.ruleList[ruleIndex].minLength = val)
                             "
                           />
@@ -444,7 +504,7 @@ const editField = (index: number) => {
                             :min="rule.minLength"
                             :disabled="!field.isEditing"
                             @update:value="
-                              (val) =>
+                              (val: number) =>
                                 (field.ruleList[ruleIndex].maxLength = val)
                             "
                           />
@@ -464,6 +524,15 @@ const editField = (index: number) => {
                       </div>
                     </div>
                   </div>
+                </div>
+                <div v-else class="flex justify-center">
+                  <Button
+                    type="primary"
+                    :disabled="!field.isEditing"
+                    @click="() => addRule(index)"
+                  >
+                    添加验证规则
+                  </Button>
                 </div>
                 <div class="flex items-center gap-4">
                   <Button
@@ -488,7 +557,10 @@ const editField = (index: number) => {
               </div>
             </List.Item>
           </List>
-          <div v-else>暂无课程名称规则</div>
+          <div v-else class="flex flex-col items-center gap-4">
+            <div>暂无课程名称规则</div>
+            <Button type="primary" @click="addField">点击添加规则</Button>
+          </div>
         </div>
       </div>
     </Card>
