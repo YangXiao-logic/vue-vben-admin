@@ -12,6 +12,7 @@ import {
   InputNumber,
   List,
   message,
+  Modal,
   Select,
   Spin,
   Switch,
@@ -120,15 +121,25 @@ const handleUpsertCourseNameRule = async () => {
 
 // 删除课程名称规则字段
 const handleDeleteCourseNameRule = async (index: number) => {
-  fields.value.splice(index, 1);
-  const dynamicCourseForm: SchoolApi.DynamicCourseForm = {
-    fields: fields.value,
-    schoolId: selectedSchoolId.value as string,
-  };
-
-  await updateCourseNameRuleApi(dynamicCourseForm);
-
-  fetchCourseNameRule();
+  Modal.confirm({
+    title: '确认删除',
+    content: '删除后不能恢复，确定要删除吗？',
+    centered: true,
+    async onOk() {
+      try {
+        fields.value.splice(index, 1);
+        const dynamicCourseForm: SchoolApi.DynamicCourseForm = {
+          fields: fields.value,
+          schoolId: selectedSchoolId.value as string,
+        };
+        await updateCourseNameRuleApi(dynamicCourseForm);
+        message.success('删除成功');
+        fetchCourseNameRule();
+      } catch (error) {
+        console.error(error);
+      }
+    },
+  });
 };
 
 watch(selectedSchoolId, () => {
@@ -172,9 +183,22 @@ const handleAddSchool = async () => {
     message.error('请输入学校名称');
     return;
   }
-  await addSchoolApi(newSchoolName.value);
-  fetchSchoolList(); // 重新获取学校列表
-  newSchoolName.value = ''; // 清空输入框
+
+  Modal.confirm({
+    title: '确认添加',
+    content: '确定要添加此学校吗？',
+    centered: true,
+    async onOk() {
+      try {
+        await addSchoolApi(newSchoolName.value);
+        message.success('添加成功');
+        fetchSchoolList();
+        newSchoolName.value = '';
+      } catch (error) {
+        console.error(error);
+      }
+    },
+  });
 };
 
 // 编辑学校名称
@@ -220,9 +244,22 @@ const handleDeleteEmailRule = async () => {
     message.error('请选择要删除的邮箱规则');
     return;
   }
-  await deleteEmailRuleApi(selectedEmailRuleId.value);
-  getEmailRuleList(); // 重新获取邮箱规则列表
-  selectedEmailRuleId.value = null; // 清空选中的邮箱规则ID
+
+  Modal.confirm({
+    title: '确认删除',
+    content: '删除后不能恢复，确定要删除吗？',
+    centered: true,
+    async onOk() {
+      try {
+        await deleteEmailRuleApi(selectedEmailRuleId.value);
+        message.success('删除成功');
+        getEmailRuleList();
+        selectedEmailRuleId.value = null;
+      } catch (error) {
+        console.error(error);
+      }
+    },
+  });
 };
 
 // 添加字段
@@ -283,7 +320,15 @@ const deleteRule = (fieldIndex: number, ruleIndex: number) => {
     message.warning('请先点击编辑按钮');
     return;
   }
-  fields.value[fieldIndex].ruleList.splice(ruleIndex, 1);
+
+  Modal.confirm({
+    title: '确认删除',
+    content: '删除后不能恢复，确定要删除吗？',
+    centered: true,
+    onOk() {
+      fields.value[fieldIndex].ruleList.splice(ruleIndex, 1);
+    },
+  });
 };
 </script>
 

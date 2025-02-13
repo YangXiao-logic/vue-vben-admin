@@ -115,14 +115,21 @@ const editCollection = async () => {
   }
 };
 
-const deleteCollection = async (id) => {
-  try {
-    await deleteCollectionApi(id);
-    message.success('删除成功');
-    fetchCollections();
-  } catch (error) {
-    message.error(`失败了，${error?.message}`);
-  }
+const deleteCollection = async (id: string) => {
+  Modal.confirm({
+    title: '确认删除',
+    content: '删除后不能恢复，确定要删除吗？',
+    centered: true,
+    async onOk() {
+      try {
+        await deleteCollectionApi(id);
+        message.success('删除成功');
+        fetchCollections();
+      } catch (error) {
+        console.error(error);
+      }
+    },
+  });
 };
 
 onMounted(() => {
@@ -182,7 +189,11 @@ onMounted(() => {
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'action'">
           <Button @click="showEditModal(record)">编辑</Button>
-          <Button danger @click="() => deleteCollection(record.collectionId)">
+          <Button
+            danger
+            style="margin-left: 8px"
+            @click="() => deleteCollection(record.collectionId)"
+          >
             删除
           </Button>
         </template>
