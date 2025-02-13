@@ -237,11 +237,11 @@ const addField = () => {
     placeholder: '',
     ruleList: [
       {
-        errorMessage: '此字段不能为空',
-        required: true,
-        pattern: '',
-        maxLength: 50,
-        minLength: 1,
+        errorMessage: '',
+        required: false,
+        pattern: undefined,
+        maxLength: undefined,
+        minLength: undefined,
       },
     ],
     isEditing: true,
@@ -271,7 +271,7 @@ const addRule = (fieldIndex: number) => {
   fields.value[fieldIndex].ruleList.push({
     errorMessage: '',
     required: false,
-    pattern: '',
+    pattern: undefined,
     maxLength: undefined,
     minLength: undefined,
   });
