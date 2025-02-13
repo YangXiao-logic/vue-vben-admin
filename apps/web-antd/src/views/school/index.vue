@@ -265,7 +265,7 @@ const handleDeleteEmailRule = async () => {
 // 添加字段
 const addField = () => {
   if (fields.value?.[fields.value.length - 1]?.name === '') {
-    message.error('请完成当前编辑的字段再新建哦');
+    message.error('最新一条字段的 name 还为空，请完成当前编辑的字段再新建哦');
     return;
   }
   fields.value.push({
@@ -433,10 +433,13 @@ const deleteRule = (fieldIndex: number, ruleIndex: number) => {
       </div>
     </Card>
 
-    <Card title="课程名称规则管理" class="mb-5">
+    <Card title="课程创建规则管理" class="mb-5">
       <div class="flex flex-col gap-4">
         <div class="mt-4">
-          <div class="mb-2 font-medium">当前课程名称规则：</div>
+          <div class="mb-2 flex justify-between">
+            <div class="mb-2 font-medium">当前课程创建字段：</div>
+            <Button type="primary" @click="addField">点击添加字段</Button>
+          </div>
           <Spin v-if="loading" />
           <List v-if="fields.length > 0" bordered>
             <List.Item v-for="(field, index) in fields" :key="index">
@@ -490,7 +493,7 @@ const deleteRule = (fieldIndex: number, ruleIndex: number) => {
                     <div
                       v-for="(rule, ruleIndex) in field.ruleList"
                       :key="ruleIndex"
-                      class="mb-4 border-b pb-4 last:border-b-0"
+                      class="border-b py-2 last:border-b-0"
                     >
                       <div class="mb-2 flex items-center justify-between">
                         <span class="text-gray-500"
@@ -502,7 +505,7 @@ const deleteRule = (fieldIndex: number, ruleIndex: number) => {
                           :disabled="!field.isEditing"
                           @click="() => deleteRule(index, ruleIndex)"
                         >
-                          删除规则
+                          删除本条规则
                         </Button>
                       </div>
                       <div
@@ -602,9 +605,8 @@ const deleteRule = (fieldIndex: number, ruleIndex: number) => {
               </div>
             </List.Item>
           </List>
-          <div v-else class="flex flex-col items-center gap-4">
-            <div>暂无课程名称规则</div>
-            <Button type="primary" @click="addField">点击添加规则</Button>
+          <div v-else class="my-8 flex flex-col items-center gap-4">
+            <div>暂无字段</div>
           </div>
         </div>
       </div>
