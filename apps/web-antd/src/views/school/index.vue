@@ -215,7 +215,6 @@ const handleBindEmailRule = async () => {
     return;
   }
   await bindEmailRuleApi({
-    schoolEmailRuleId: selectedEmailRuleId.value as string,
     schoolId: selectedSchoolId.value as string,
     emailRule: newEmailRule.value,
   });

@@ -9,7 +9,7 @@ export namespace SchoolApi {
 
   /** 学校邮箱规则接口 */
   export interface SchoolEmailRule {
-    schoolEmailRuleId: string;
+    schoolEmailRuleId?: string;
     schoolId: string;
     emailRule: string;
   }
