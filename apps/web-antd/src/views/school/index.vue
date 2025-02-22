@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import type { SelectValue } from 'ant-design-vue/es/select';
 
+import type { CollectionApi } from '#/api/core/collectionMange';
 import type { SchoolApi } from '#/api/core/school';
 
 import { onMounted, ref, watch } from 'vue';
@@ -16,8 +17,14 @@ import {
   Select,
   Spin,
   Switch,
+  Table,
+  Upload,
 } from 'ant-design-vue';
 
+import {
+  batchAddCourseApi,
+  getCollectionContent,
+} from '#/api/core/collectionMange';
 import {
   addSchoolApi,
   bindCourseNameRuleApi,
@@ -28,6 +35,7 @@ import {
   getCourseNameRuleApi,
   getEmailRuleListApi,
   getSchoolListApi,
+  getSchoolRootCollectionIdApi,
   updateCourseNameRuleApi,
 } from '#/api/core/school';
 
@@ -61,6 +69,15 @@ const fields = ref<
     ruleList: SchoolApi.Rule[];
   }[]
 >([]);
+
+// 添加新的状态
+const uploadLoading = ref(false);
+const rootCollectionId = ref<string>('');
+const collections = ref<CollectionApi.CollectionContentVo[]>([]);
+const collectionRankRule = ref<CollectionApi.CollectionRankRule>(
+  'BY_CREATE_TIME_DESC',
+);
+const collectionLoading = ref(false);
 
 // 获取学校列表
 const fetchSchoolList = async () => {
@@ -142,15 +159,58 @@ const handleDeleteCourseNameRule = async (index: number) => {
   });
 };
 
+// 获取集合内容
+const fetchCollections = async () => {
+  if (!rootCollectionId.value || !collectionRankRule.value) return;
+
+  try {
+    collectionLoading.value = true;
+    const data = await getCollectionContent(
+      rootCollectionId.value,
+      collectionRankRule.value,
+    );
+    collections.value = data;
+  } catch (error) {
+    console.error(error);
+    message.error('获取集合内容失败');
+  } finally {
+    collectionLoading.value = false;
+  }
+};
+
+// 获取学校根集合ID
+const fetchSchoolRootCollectionId = async () => {
+  if (!selectedSchoolId.value) return;
+
+  try {
+    const rootId = await getSchoolRootCollectionIdApi(
+      selectedSchoolId.value as string,
+    );
+    rootCollectionId.value = rootId;
+    // 获取到根ID后自动获取集合内容
+    await fetchCollections();
+  } catch (error) {
+    console.error(error);
+    message.error('获取学校根集合ID失败');
+  }
+};
+
+// 添加对排序规则的监听
+watch(collectionRankRule, () => {
+  fetchCollections();
+});
+
 watch(selectedSchoolId, () => {
   getEmailRuleList();
-  fetchCourseNameRule(); // 监听学校ID变化，获取课程名称规则
+  fetchCourseNameRule();
+  fetchSchoolRootCollectionId();
 });
 
 onMounted(() => {
   fetchSchoolList();
   getEmailRuleList();
-  fetchCourseNameRule(); // 初始获取课程名称规则
+  fetchCourseNameRule();
+  fetchSchoolRootCollectionId();
 });
 
 const handleSchoolChange = (value: SelectValue) => {
@@ -328,6 +388,44 @@ const deleteRule = (fieldIndex: number, ruleIndex: number) => {
       fields.value[fieldIndex].ruleList.splice(ruleIndex, 1);
     },
   });
+};
+
+// 添加批量上传课程的处理函数
+const handleBatchAddCourse = async (file: File) => {
+  if (!selectedSchoolId.value) {
+    message.error('请先选择学校');
+    return;
+  }
+
+  if (!courseNameRule.value?.dynamicCourseFormId) {
+    message.error('请先设置课程创建规则');
+    return;
+  }
+
+  try {
+    uploadLoading.value = true;
+    await batchAddCourseApi(
+      file,
+      selectedSchoolId.value as string,
+      courseNameRule.value.dynamicCourseFormId,
+    );
+    message.success('批量添加课程成功');
+  } catch (error) {
+    console.error(error);
+    message.error('批量添加课程失败');
+  } finally {
+    uploadLoading.value = false;
+  }
+};
+
+// 文件上传前的校验
+const beforeUpload = (file: File) => {
+  const isJSON = file.type === 'application/json';
+  if (!isJSON) {
+    message.error('只能上传 JSON 文件！');
+    return false;
+  }
+  return true;
 };
 </script>
 
@@ -609,6 +707,63 @@ const deleteRule = (fieldIndex: number, ruleIndex: number) => {
           </div>
         </div>
       </div>
+    </Card>
+
+    <Card title="批量添加课程" class="mb-5">
+      <div class="flex items-center gap-4">
+        <Upload
+          :before-upload="beforeUpload"
+          :show-upload-list="false"
+          accept=".json"
+          @change="
+            (info) => {
+              if (info.file.status !== 'uploading') {
+                handleBatchAddCourse(info.file.originFileObj);
+              }
+            }
+          "
+        >
+          <Button :loading="uploadLoading" type="primary">
+            <UploadOutlined /> 上传JSON文件
+          </Button>
+        </Upload>
+        <span class="text-gray-500">
+          请上传符合课程创建规则的JSON文件进行批量添加
+        </span>
+      </div>
+    </Card>
+
+    <Card title="学校集合内容" class="mb-5">
+      <div class="mb-4 flex items-center gap-4">
+        <Select
+          v-model:value="collectionRankRule"
+          placeholder="选择排序规则"
+          style="width: 220px"
+        >
+          <Select.Option value="BY_CREATE_TIME_DESC">
+            创建时间降序
+          </Select.Option>
+          <Select.Option value="BY_CREATE_TIME_ASC">创建时间升序</Select.Option>
+          <Select.Option value="BY_NAME_DESC">名称降序</Select.Option>
+          <Select.Option value="BY_NAME_ASC">名称升序</Select.Option>
+          <Select.Option value="BY_POPULARITY_DESC">
+            受欢迎程度降序
+          </Select.Option>
+        </Select>
+      </div>
+
+      <Spin v-if="collectionLoading" />
+      <Table
+        v-else
+        :data-source="collections"
+        :columns="[
+          { title: '文件夹ID', dataIndex: 'collectionId' },
+          { title: '名称', dataIndex: 'title' },
+          { title: '创建时间', dataIndex: 'createTime' },
+          { title: '类型', dataIndex: 'type' },
+        ]"
+        row-key="collectionId"
+      />
     </Card>
   </div>
 </template>

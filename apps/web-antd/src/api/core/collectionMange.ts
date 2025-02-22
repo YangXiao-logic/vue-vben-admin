@@ -112,3 +112,23 @@ export async function editCollectionApi(
 export async function computePopularityApi(): Promise<void> {
   return requestClient.post('/collection-manage/computePopularity');
 }
+
+/**
+ * 批量添加课程
+ */
+export async function batchAddCourseApi(
+  file: File,
+  parentCollectionId: string,
+  dynamicCourseFormId: string,
+): Promise<void> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('parentCollectionId', parentCollectionId);
+  formData.append('dynamicCourseFormId', dynamicCourseFormId);
+
+  return requestClient.post('/collection-manage/batch-add-course', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+}
