@@ -64,7 +64,7 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
     fulfilled: async (config) => {
       const accessStore = useAccessStore();
 
-      config.headers.Authorization = formatToken(accessStore.accessToken);
+      config.headers.Authorization = accessStore.accessToken;
       config.headers['Accept-Language'] = preferences.app.locale;
       return config;
     },
@@ -96,11 +96,9 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
   return client;
 }
 
-export const requestClient = new RequestClient({
-  baseURL: apiURL,
+export const requestClient = createRequestClient(apiURL, {
   responseReturn: 'data',
 });
-
 export const anthRequestClient = createRequestClient(authURL, {
   responseReturn: 'data',
 });
