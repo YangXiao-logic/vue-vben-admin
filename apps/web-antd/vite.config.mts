@@ -11,7 +11,7 @@ export default defineConfig(async (config?: ConfigEnv) => {
             changeOrigin: true,
             rewrite: (path) => path.replace(/^\/api/, ''),
             // target: process.env.VITE_API_BASE_URL,
-            target: 'http://47.113.103.202:8090/',
+            target: 'http://localhost:8090/',
             ws: true,
           },
         },

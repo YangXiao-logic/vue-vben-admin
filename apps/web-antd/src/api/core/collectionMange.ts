@@ -116,11 +116,11 @@ export async function computePopularityApi(): Promise<void> {
 /**
  * 批量添加课程
  */
-export async function batchAddCourseApi(
+export const batchAddCourseApi = (
   file: File,
   parentCollectionId: string,
   dynamicCourseFormId: string,
-): Promise<void> {
+): Promise<void> => {
   const formData = new FormData();
   formData.append('file', file);
   formData.append('parentCollectionId', parentCollectionId);
@@ -131,4 +131,4 @@ export async function batchAddCourseApi(
       'Content-Type': 'multipart/form-data',
     },
   });
-}
+};

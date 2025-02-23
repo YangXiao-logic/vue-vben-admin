@@ -43,6 +43,7 @@
     "commit": "czg",
     "dev": "turbo-run dev",
     "dev:antd": "pnpm -F @vben/web-antd run dev",
+    "test:antd": "pnpm -F @vben/web-antd run test",
     "dev:docs": "pnpm -F @vben/docs run dev",
     "dev:ele": "pnpm -F @vben/web-ele run dev",
     "dev:naive": "pnpm -F @vben/web-naive run dev",

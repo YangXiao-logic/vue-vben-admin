@@ -78,6 +78,7 @@ const collectionRankRule = ref<CollectionApi.CollectionRankRule>(
   'BY_CREATE_TIME_DESC',
 );
 const collectionLoading = ref(false);
+const selectedCollectionId = ref<string>('');
 
 // 获取学校列表
 const fetchSchoolList = async () => {
@@ -390,7 +391,7 @@ const deleteRule = (fieldIndex: number, ruleIndex: number) => {
   });
 };
 
-// 添加批量上传课程的处理函数
+// 修改批量添加课程的处理函数
 const handleBatchAddCourse = async (file: File) => {
   if (!selectedSchoolId.value) {
     message.error('请先选择学校');
@@ -402,11 +403,16 @@ const handleBatchAddCourse = async (file: File) => {
     return;
   }
 
+  if (!selectedCollectionId.value) {
+    message.error('请选择目标集合');
+    return;
+  }
+
   try {
     uploadLoading.value = true;
     await batchAddCourseApi(
       file,
-      selectedSchoolId.value as string,
+      selectedCollectionId.value,
       courseNameRule.value.dynamicCourseFormId,
     );
     message.success('批量添加课程成功');
@@ -711,6 +717,19 @@ const beforeUpload = (file: File) => {
 
     <Card title="批量添加课程" class="mb-5">
       <div class="flex items-center gap-4">
+        <Select
+          v-model:value="selectedCollectionId"
+          placeholder="选择目标集合"
+          style="width: 220px"
+        >
+          <Select.Option
+            v-for="collection in collections"
+            :key="collection.collectionId"
+            :value="collection.collectionId"
+          >
+            {{ collection.title }}
+          </Select.Option>
+        </Select>
         <Upload
           :before-upload="beforeUpload"
           :show-upload-list="false"
@@ -728,7 +747,7 @@ const beforeUpload = (file: File) => {
           </Button>
         </Upload>
         <span class="text-gray-500">
-          请上传符合课程创建规则的JSON文件进行批量添加
+          请选择目标集合并上传符合课程创建规则的JSON文件进行批量添加
         </span>
       </div>
     </Card>

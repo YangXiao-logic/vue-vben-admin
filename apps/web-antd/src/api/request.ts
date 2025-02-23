@@ -97,7 +97,7 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
 }
 
 export const requestClient = new RequestClient({
-  baseURL: '/api',
+  baseURL: apiURL,
   responseReturn: 'data',
 });
 
