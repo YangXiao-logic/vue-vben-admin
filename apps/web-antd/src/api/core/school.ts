@@ -35,6 +35,7 @@ export namespace SchoolApi {
   export interface DynamicCourseForm {
     dynamicCourseFormId?: string;
     fields: FormField[];
+    enabled: boolean;
     schoolId: string;
   }
 }
