@@ -121,6 +121,7 @@ const handleUpsertCourseNameRule = async () => {
       ruleList: field.ruleList || [],
     })),
     schoolId: selectedSchoolId.value as string,
+    enabled: courseNameRule.value?.enabled ?? true,
   };
 
   try {
@@ -433,6 +434,14 @@ const beforeUpload = (file: File) => {
   }
   return true;
 };
+
+// 添加一个新的方法来处理启用状态的改变
+const handleEnabledChange = (value: boolean) => {
+  if (courseNameRule.value) {
+    courseNameRule.value.enabled = value;
+    handleUpsertCourseNameRule();
+  }
+};
 </script>
 
 <template>
@@ -538,6 +547,16 @@ const beforeUpload = (file: File) => {
 
     <Card title="课程创建规则管理" class="mb-5">
       <div class="flex flex-col gap-4">
+        <div class="flex items-center gap-2">
+          <span class="font-medium">启用状态：</span>
+          <Switch
+            :checked="courseNameRule?.enabled ?? false"
+            @change="handleEnabledChange"
+          />
+          <span class="text-gray-500">{{
+            courseNameRule?.enabled ? '已启用' : '已禁用'
+          }}</span>
+        </div>
         <div class="mt-4">
           <div class="mb-2 flex justify-between">
             <div class="mb-2 font-medium">当前课程创建字段：</div>
