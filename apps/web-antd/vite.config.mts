@@ -1,7 +1,12 @@
 import { defineConfig } from '@vben/vite-config';
 import type { ConfigEnv } from 'vite';
-
 export default defineConfig(async (config?: ConfigEnv) => {
+  // 根据环境模式设置不同的API地址
+  const apiUrl =
+    config?.mode === 'test'
+      ? 'http://47.113.103.202:8090/'
+      : 'http://localhost:8090/';
+  console.log(apiUrl);
   return {
     application: {},
     vite: {
@@ -10,8 +15,7 @@ export default defineConfig(async (config?: ConfigEnv) => {
           '/api': {
             changeOrigin: true,
             rewrite: (path) => path.replace(/^\/api/, ''),
-            // target: process.env.VITE_API_BASE_URL,
-            target: 'http://localhost:8090/',
+            target: apiUrl,
             ws: true,
           },
         },
