@@ -4,13 +4,14 @@
 import type { RequestClientOptions } from '@vben/request';
 
 import { useAppConfig } from '@vben/hooks';
+import { LOGIN_PATH } from '@vben/constants';
 import { preferences } from '@vben/preferences';
 import {
   authenticateResponseInterceptor,
   errorMessageResponseInterceptor,
   RequestClient,
 } from '@vben/request';
-import { useAccessStore } from '@vben/stores';
+import { resetAllStores, useAccessStore } from '@vben/stores';
 
 import { message } from 'ant-design-vue';
 
@@ -33,6 +34,21 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
     console.warn('Access token or refresh token is invalid or expired. ');
     const accessStore = useAccessStore();
     const authStore = useAuthStore();
+
+    // 当前暂时禁用了refreshToken功能，直接重置store并跳转登录页，不调用logoutApi
+    accessStore.setAccessToken(null);
+
+    // 直接重置所有store状态
+    resetAllStores();
+
+    // 不使用router，直接用window.location.href跳转
+    const currentPath = window.location.pathname + window.location.search;
+    const redirectParam = encodeURIComponent(currentPath);
+    window.location.href = `${LOGIN_PATH}?redirect=${redirectParam}`;
+
+    return;
+
+    // 以下代码暂时保留，不执行
     accessStore.setAccessToken(null);
     if (
       preferences.app.loginExpiredMode === 'modal' &&
@@ -46,6 +62,7 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
 
   /**
    * 刷新token逻辑
+   * 注意：当前暂时禁用了refreshToken功能，但保留代码以便将来使用
    */
   async function doRefreshToken() {
     const accessStore = useAccessStore();
@@ -76,7 +93,9 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
       client,
       doReAuthenticate,
       doRefreshToken,
-      enableRefreshToken: preferences.app.enableRefreshToken,
+      // 修改为false，暂时禁用refreshToken功能，使token无效时直接跳转到登录页
+      // 原来的配置：preferences.app.enableRefreshToken
+      enableRefreshToken: false,
       formatToken,
     }),
   );
