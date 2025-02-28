@@ -7,374 +7,379 @@ import {
   Input,
   message,
   Modal,
-  Select,
   Table,
   Tag,
   Tooltip,
 } from 'ant-design-vue';
+import { EyeOutlined, CopyOutlined, EditOutlined } from '@ant-design/icons-vue';
+
+import {
+  getInviteCodeListApi,
+  addSpecialInviteCodeApi,
+  updateSpecialInviteCodeDescriptionApi,
+  getInviteHistoryApi,
+} from '#/api/core/inviteManage';
+import type { InviteManageApi } from '#/api/core/inviteManage';
 
 // 表格加载状态
 const loading = ref(false);
-// 邀请列表数据
-const inviteList = ref<any[]>([]);
-// 搜索关键词
-const searchKeyword = ref<string>('');
-// 邀请状态过滤
-const statusFilter = ref<string>('all');
-// 添加邀请对话框可见性
-const inviteModalVisible = ref<boolean>(false);
+// 邀请码列表数据
+const inviteCodeList = ref<InviteManageApi.SpecialInviteCode[]>([]);
 // 表单数据
 const formData = ref({
-  email: '',
-  role: 'user',
-  expireTime: 7, // 默认7天有效期
+  account: '',
+  description: '',
 });
 
-// 模拟邀请数据
-const mockInviteData = () => {
-  const statusOptions = ['pending', 'accepted', 'expired'];
-  const roleOptions = ['admin', 'user', 'guest'];
+// 邀请历史记录相关
+const historyModalVisible = ref<boolean>(false);
+const historyLoading = ref<boolean>(false);
+const currentInviteCode = ref<string>('');
+const inviteHistoryList = ref<InviteManageApi.InviteHistory[]>([]);
 
-  return Array.from({ length: 15 }).map((_, index) => {
-    const status =
-      statusOptions[Math.floor(Math.random() * statusOptions.length)];
-    const createTime = new Date(
-      Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000,
-    );
-    const expireTime = new Date(createTime.getTime() + 7 * 24 * 60 * 60 * 1000);
+// 编辑描述相关
+const editDescModalVisible = ref<boolean>(false);
+const editingInviteCode = ref<InviteManageApi.SpecialInviteCode | null>(null);
+const newDescription = ref<string>('');
 
-    return {
-      id: `invite_${index + 1}`,
-      email: `invited${index + 1}@example.com`,
-      inviteCode: `INV${String(Math.floor(Math.random() * 10000)).padStart(6, '0')}`,
-      role: roleOptions[Math.floor(Math.random() * roleOptions.length)],
-      status,
-      createTime: createTime.toISOString().split('T')[0],
-      expireTime: expireTime.toISOString().split('T')[0],
-      acceptTime:
-        status === 'accepted'
-          ? new Date(
-              createTime.getTime() +
-                Math.floor(Math.random() * 3) * 24 * 60 * 60 * 1000,
-            )
-              .toISOString()
-              .split('T')[0]
-          : null,
-    };
-  });
-};
-
-// 获取邀请列表
-const fetchInviteList = async () => {
+// 获取邀请码列表
+const fetchInviteCodeList = async () => {
   try {
     loading.value = true;
-    // 模拟API调用
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    inviteList.value = mockInviteData();
+    const res = await getInviteCodeListApi();
+    inviteCodeList.value = res || [];
   } catch (error) {
     console.log(error);
-    message.error('获取邀请列表失败');
   } finally {
     loading.value = false;
   }
 };
+fetchInviteCodeList();
 
-// 搜索邀请
-const handleSearch = () => {
-  fetchInviteList();
-};
-
-// 重置搜索
-const handleReset = () => {
-  searchKeyword.value = '';
-  statusFilter.value = 'all';
-  fetchInviteList();
-};
-
-// 添加邀请
-const handleAddInvite = () => {
-  formData.value = {
-    email: '',
-    role: 'user',
-    expireTime: 7,
-  };
-  inviteModalVisible.value = true;
-};
-
-// 发送邀请
-const handleSendInvite = async () => {
+// 生成特殊邀请码
+const handleGenerateInviteCode = async () => {
   try {
-    // 模拟API调用
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    message.success('邀请发送成功');
-    inviteModalVisible.value = false;
-    fetchInviteList();
+    if (!formData.value.account) {
+      message.warning('请输入账号');
+      return;
+    }
+
+    const res = await addSpecialInviteCodeApi({
+      account: formData.value.account,
+      description: formData.value.description,
+    });
+
+    message.success('特殊邀请码生成成功');
+    // 清空表单
+    formData.value = {
+      account: '',
+      description: '',
+    };
+    fetchInviteCodeList();
   } catch (error) {
     console.log(error);
-    message.error('邀请发送失败');
   }
 };
 
-// 复制邀请链接
-const handleCopyInviteLink = (record: any) => {
-  const inviteLink = `https://example.com/register?code=${record.inviteCode}`;
+// 复制邀请码
+const handleCopyInviteCode = (record: InviteManageApi.SpecialInviteCode) => {
+  if (!record.inviteCode) {
+    message.error('邀请码不存在');
+    return;
+  }
 
   // 使用 navigator.clipboard API 复制到剪贴板
   navigator.clipboard
-    .writeText(inviteLink)
+    .writeText(record.inviteCode)
     .then(() => {
-      message.success('邀请链接已复制到剪贴板');
+      message.success('邀请码已复制到剪贴板');
     })
     .catch(() => {
       message.error('复制失败，请手动复制');
     });
 };
 
-// 重新发送邀请
-const handleResendInvite = async (record: any) => {
+// 查看邀请历史
+const handleViewHistory = async (record: InviteManageApi.SpecialInviteCode) => {
+  if (!record.inviteCode) {
+    message.error('邀请码不存在');
+    return;
+  }
+
   try {
-    // 模拟API调用
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    message.success(`邀请已重新发送至 ${record.email}`);
-    fetchInviteList();
+    historyLoading.value = true;
+    currentInviteCode.value = record.inviteCode;
+    const res = await getInviteHistoryApi(record.inviteCode);
+    inviteHistoryList.value = res || [];
+    historyModalVisible.value = true;
   } catch (error) {
     console.log(error);
-    message.error('重新发送邀请失败');
+  } finally {
+    historyLoading.value = false;
   }
 };
 
-// 取消邀请
-const handleCancelInvite = async (record: any) => {
-  Modal.confirm({
-    title: '确认取消',
-    content: `确定要取消发送给 ${record.email} 的邀请吗？`,
-    okText: '确认',
-    cancelText: '取消',
-    onOk: async () => {
-      try {
-        // 模拟API调用
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        message.success('邀请已取消');
-        fetchInviteList();
-      } catch (error) {
-        console.log(error);
-        message.error('取消邀请失败');
-      }
-    },
-  });
+// 编辑描述
+const handleEditDescription = (record: InviteManageApi.SpecialInviteCode) => {
+  editingInviteCode.value = record;
+  newDescription.value = record.description || '';
+  editDescModalVisible.value = true;
 };
 
-// 表格列定义
+// 保存描述
+const handleSaveDescription = async () => {
+  if (!editingInviteCode.value?.inviteCodeId) {
+    message.error('邀请码ID不存在');
+    return;
+  }
+
+  try {
+    await updateSpecialInviteCodeDescriptionApi(
+      editingInviteCode.value.inviteCodeId,
+      newDescription.value,
+    );
+    message.success('描述更新成功');
+    editDescModalVisible.value = false;
+    fetchInviteCodeList();
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+// 格式化时间
+const formatTime = (time: any) => {
+  if (!time) return '-';
+
+  if (typeof time === 'object' && time.seconds) {
+    // 处理Instant类型
+    const date = new Date(Number(time.seconds) * 1000);
+    return date.toLocaleString();
+  }
+
+  return time;
+};
+
+// 邀请码列表表格列定义
 const columns = [
-  {
-    title: '邮箱',
-    dataIndex: 'email',
-    key: 'email',
-  },
   {
     title: '邀请码',
     dataIndex: 'inviteCode',
     key: 'inviteCode',
   },
   {
-    title: '角色',
-    dataIndex: 'role',
-    key: 'role',
-    customRender: ({ text }: { text: string }) => {
-      const roleMap: Record<string, { color: string; label: string }> = {
-        admin: { color: 'blue', label: '管理员' },
-        user: { color: 'green', label: '普通用户' },
-        guest: { color: 'orange', label: '访客' },
-      };
-      const { color, label } = roleMap[text] || {
-        color: 'default',
-        label: text,
-      };
-      return h(Tag, { color }, { default: () => label });
-    },
-  },
-  {
-    title: '状态',
-    dataIndex: 'status',
-    key: 'status',
-    customRender: ({ text }: { text: string }) => {
-      const statusMap: Record<string, { color: string; label: string }> = {
-        pending: { color: 'processing', label: '待接受' },
-        accepted: { color: 'success', label: '已接受' },
-        expired: { color: 'default', label: '已过期' },
-      };
-      const { color, label } = statusMap[text] || {
-        color: 'default',
-        label: text,
-      };
-      return h(Tag, { color }, { default: () => label });
-    },
-  },
-  {
-    title: '创建时间',
-    dataIndex: 'createTime',
-    key: 'createTime',
-  },
-  {
-    title: '过期时间',
-    dataIndex: 'expireTime',
-    key: 'expireTime',
-  },
-  {
-    title: '接受时间',
-    dataIndex: 'acceptTime',
-    key: 'acceptTime',
+    title: '用户邮箱',
+    dataIndex: 'userEmail',
+    key: 'userEmail',
     customRender: ({ text }: { text: string | null }) => {
       return text || '-';
     },
   },
   {
+    title: '描述标记',
+    dataIndex: 'description',
+    key: 'description',
+    customRender: ({ text }: { text: string | null }) => {
+      if (!text) return '-';
+
+      // 根据描述内容显示不同标签
+      if (text.includes('小红书')) {
+        return h(Tag, { color: 'red' }, { default: () => text });
+      } else if (text.includes('大使')) {
+        return h(Tag, { color: 'blue' }, { default: () => text });
+      } else if (text.includes('公众号')) {
+        return h(Tag, { color: 'green' }, { default: () => text });
+      }
+
+      return text;
+    },
+  },
+  {
     title: '操作',
     key: 'action',
-    customRender: ({ record }: { record: any }) => {
-      const isPending = record.status === 'pending';
-
+    customRender: ({
+      record,
+    }: {
+      record: InviteManageApi.SpecialInviteCode;
+    }) => {
       return h('div', [
         h(
-          Tooltip,
-          { title: '复制邀请链接' },
+          Button,
           {
-            default: () =>
-              h(
-                Button,
-                {
-                  type: 'link',
-                  onClick: () => handleCopyInviteLink(record),
-                },
-                { default: () => '复制链接' },
-              ),
+            type: 'link',
+            onClick: () => handleViewHistory(record),
+            style: { color: '#1890ff' },
+          },
+          {
+            default: () => [
+              h(EyeOutlined, { style: { marginRight: '4px' } }),
+              '查看邀请记录',
+            ],
           },
         ),
-
-        isPending
-          ? h(
-              Button,
-              {
-                type: 'link',
-                onClick: () => handleResendInvite(record),
-              },
-              { default: () => '重新发送' },
-            )
-          : null,
-
-        isPending
-          ? h(
-              Button,
-              {
-                type: 'link',
-                danger: true,
-                onClick: () => handleCancelInvite(record),
-              },
-              { default: () => '取消' },
-            )
-          : null,
+        h(
+          Button,
+          {
+            type: 'link',
+            onClick: () => handleCopyInviteCode(record),
+            style: { color: '#52c41a' },
+          },
+          {
+            default: () => [
+              h(CopyOutlined, { style: { marginRight: '4px' } }),
+              '复制邀请码',
+            ],
+          },
+        ),
+        h(
+          Button,
+          {
+            type: 'link',
+            onClick: () => handleEditDescription(record),
+            style: { color: '#faad14' },
+          },
+          {
+            default: () => [
+              h(EditOutlined, { style: { marginRight: '4px' } }),
+              '编辑描述标记',
+            ],
+          },
+        ),
       ]);
     },
   },
 ];
 
-// 状态选项
-const statusOptions = [
-  { label: '全部', value: 'all' },
-  { label: '待接受', value: 'pending' },
-  { label: '已接受', value: 'accepted' },
-  { label: '已过期', value: 'expired' },
-];
-
-// 角色选项
-const roleOptions = [
-  { label: '管理员', value: 'admin' },
-  { label: '普通用户', value: 'user' },
-  { label: '访客', value: 'guest' },
-];
-
-// 有效期选项
-const expireTimeOptions = [
-  { label: '1天', value: 1 },
-  { label: '3天', value: 3 },
-  { label: '7天', value: 7 },
-  { label: '15天', value: 15 },
-  { label: '30天', value: 30 },
+// 邀请历史表格列定义
+const historyColumns = [
+  {
+    title: '时间',
+    dataIndex: 'createTime',
+    key: 'createTime',
+    customRender: ({ text }: { text: any }) => formatTime(text),
+  },
+  {
+    title: '用户账号',
+    dataIndex: 'toUserAccount',
+    key: 'toUserAccount',
+    customRender: ({ text }: { text: string | null }) => text || '-',
+  },
+  {
+    title: '充值类型',
+    dataIndex: 'vipRechargeType',
+    key: 'vipRechargeType',
+    customRender: ({ text }: { text: string | null }) => {
+      if (!text) return '-';
+      return h(Tag, { color: 'blue' }, { default: () => text });
+    },
+  },
 ];
 
 onMounted(() => {
-  fetchInviteList();
+  fetchInviteCodeList();
 });
 </script>
 
 <template>
   <div class="invite-manage-container">
-    <Card title="邀请管理" :bordered="false">
-      <!-- 搜索区域 -->
-      <div class="search-container mb-4 flex flex-wrap items-center gap-4">
-        <Input
-          v-model:value="searchKeyword"
-          placeholder="请输入邮箱/邀请码"
-          style="width: 240px"
-          @pressEnter="handleSearch"
-        />
-        <Select
-          v-model:value="statusFilter"
-          style="width: 120px"
-          placeholder="状态"
-          :options="statusOptions"
-        />
-        <Button type="primary" @click="handleSearch">搜索</Button>
-        <Button @click="handleReset">重置</Button>
-        <Button type="primary" @click="handleAddInvite">发送邀请</Button>
+    <Card title="特殊邀请码管理" :bordered="false">
+      <!-- 添加特殊邀请码模块 -->
+      <Card
+        title="添加特殊邀请码："
+        class="mb-4"
+        :bordered="false"
+        size="small"
+      >
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div class="col-span-1">
+            <div class="label mb-1">账号</div>
+            <Input
+              v-model:value="formData.account"
+              placeholder="请输入邮箱账号"
+            />
+          </div>
+          <div class="col-span-1 md:col-span-2">
+            <div class="label mb-1">描述标记</div>
+            <div class="flex">
+              <Input
+                v-model:value="formData.description"
+                placeholder="请输入描述，如：小红书/大使/公众号等"
+                class="mr-2 flex-1"
+              />
+              <Button type="primary" @click="handleGenerateInviteCode"
+                >生成邀请码</Button
+              >
+            </div>
+            <div class="mt-1 text-xs text-gray-400">
+              提示：可以添加"小红书"、"大使"、"公众号"等标记，系统会自动显示对应颜色的标签
+            </div>
+          </div>
+        </div>
+      </Card>
+      <!-- 介绍说明 -->
+      <div class="mb-2 ml-3 text-sm font-bold">特殊邀请码列表：</div>
+      <div class="mb-4 rounded-md bg-gray-50 p-4">
+        <div class="text-gray-600">
+          特殊邀请码用于记录特殊邀请人的邀请历史，可以添加不同标记（小红书、大使、公众号等）以区分来源。
+          您可以查看每个邀请码的使用记录，了解邀请效果。
+        </div>
       </div>
 
       <!-- 表格区域 -->
       <Table
         :loading="loading"
         :columns="columns"
-        :dataSource="inviteList"
-        rowKey="id"
+        :dataSource="inviteCodeList"
+        rowKey="inviteCodeId"
         :pagination="{
           showSizeChanger: true,
           showQuickJumper: true,
           showTotal: (total) => `共 ${total} 条`,
           pageSize: 10,
-          total: inviteList.length,
         }"
       />
 
-      <!-- 添加邀请对话框 -->
+      <!-- 邀请历史对话框 -->
       <Modal
-        title="发送邀请"
-        v-model:open="inviteModalVisible"
+        title="邀请历史记录"
+        v-model:open="historyModalVisible"
+        :footer="null"
+        :maskClosable="true"
+        centered
+        width="700px"
+      >
+        <div v-if="currentInviteCode" class="mb-4">
+          <span class="font-bold">邀请码：</span>{{ currentInviteCode }}
+        </div>
+        <div class="mb-4">
+          <span class="font-bold">邀请人数：</span
+          >{{ inviteHistoryList.length }}
+        </div>
+        <Table
+          :loading="historyLoading"
+          :columns="historyColumns"
+          :dataSource="inviteHistoryList"
+          :pagination="false"
+        />
+      </Modal>
+
+      <!-- 编辑描述对话框 -->
+      <Modal
+        title="编辑描述标记"
+        v-model:open="editDescModalVisible"
         :maskClosable="false"
         centered
-        @ok="handleSendInvite"
+        @ok="handleSaveDescription"
       >
         <div class="form-container">
           <div class="form-item mb-4">
-            <div class="label mb-1">邮箱</div>
+            <div class="label mb-1">描述标记</div>
             <Input
-              v-model:value="formData.email"
-              placeholder="请输入邮箱地址"
+              v-model:value="newDescription"
+              placeholder="请输入描述，如：小红书/大使/公众号等"
             />
-          </div>
-          <div class="form-item mb-4">
-            <div class="label mb-1">角色</div>
-            <Select
-              v-model:value="formData.role"
-              style="width: 100%"
-              :options="roleOptions"
-            />
-          </div>
-          <div class="form-item mb-4">
-            <div class="label mb-1">有效期</div>
-            <Select
-              v-model:value="formData.expireTime"
-              style="width: 100%"
-              :options="expireTimeOptions"
-            />
+            <div class="mt-1 text-xs text-gray-400">
+              提示：可以添加"小红书"、"大使"、"公众号"等标记，系统会自动显示对应颜色的标签
+            </div>
           </div>
         </div>
       </Modal>
