@@ -206,6 +206,7 @@ watch(selectedSchoolId, () => {
   getEmailRuleList();
   fetchCourseNameRule();
   fetchSchoolRootCollectionId();
+  selectedCollectionId.value = '';
 });
 
 onMounted(() => {
