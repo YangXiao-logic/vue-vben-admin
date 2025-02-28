@@ -1,6 +1,10 @@
 import type { RouteRecordRaw } from 'vue-router';
 
-import { BookOutlined } from '@ant-design/icons-vue';
+import {
+  BookOutlined,
+  UserOutlined,
+  TeamOutlined,
+} from '@ant-design/icons-vue';
 
 const routes: RouteRecordRaw[] = [
   {
@@ -10,6 +14,24 @@ const routes: RouteRecordRaw[] = [
     meta: {
       title: '学校管理',
       icon: BookOutlined,
+    },
+  },
+  {
+    path: '/user-manage',
+    name: 'UserManage',
+    component: () => import('#/views/user-manage/index.vue'),
+    meta: {
+      title: '用户管理',
+      icon: UserOutlined,
+    },
+  },
+  {
+    path: '/invite-manage',
+    name: 'InviteManage',
+    component: () => import('#/views/invite-manage/index.vue'),
+    meta: {
+      title: '邀请管理',
+      icon: TeamOutlined,
     },
   },
 ];
