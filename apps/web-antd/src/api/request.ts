@@ -18,8 +18,7 @@ import { useAuthStore } from '#/store';
 
 import { refreshTokenApi } from './core';
 
-// const { apiURL, authURL } = useAppConfig(import.meta.env, import.meta.env.PROD);
-const { authURL } = useAppConfig(import.meta.env, import.meta.env.PROD);
+const { apiURL, authURL } = useAppConfig(import.meta.env, import.meta.env.PROD);
 
 function createRequestClient(baseURL: string, options?: RequestClientOptions) {
   const client = new RequestClient({
@@ -96,13 +95,14 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
 
   return client;
 }
-// export const requestClient = createRequestClient(apiURL, {
-export const requestClient = createRequestClient('/api', {
+
+export const requestClient = createRequestClient(apiURL, {
   responseReturn: 'data',
 });
 export const anthRequestClient = createRequestClient(authURL, {
   responseReturn: 'data',
 });
 
-// export const baseRequestClient = new RequestClient({ baseURL: apiURL });
-export const baseRequestClient = new RequestClient({ baseURL: '/api' });
+export const baseRequestClient = new RequestClient({
+  baseURL: apiURL,
+});
