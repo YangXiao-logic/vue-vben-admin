@@ -1,0 +1,21 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="prod" type="docker-deploy" factoryName="dockerfile" server-name="阿里云（3号）">
+    <deployment type="dockerfile">
+      <settings>
+        <option name="imageTag" value="fries-ai-manager-web" />
+        <option name="containerName" value="fries-ai-manager-web" />
+        <option name="contextFolderPath" value="." />
+        <option name="portBindings">
+          <list>
+            <DockerPortBindingImpl>
+              <option name="containerPort" value="8008" />
+              <option name="hostPort" value="8008" />
+            </DockerPortBindingImpl>
+          </list>
+        </option>
+        <option name="sourceFilePath" value="deploy/prod/Dockerfile" />
+      </settings>
+    </deployment>
+    <method v="2" />
+  </configuration>
+</component>

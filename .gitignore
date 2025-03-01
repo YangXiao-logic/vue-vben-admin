@@ -41,7 +41,7 @@ vite.config.js.*
 vite.config.ts.*
 
 # Editor directories and files
-.idea
+#.idea
 # .vscode
 *.suo
 *.ntvs*
