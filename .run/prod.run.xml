@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="prod" type="docker-deploy" factoryName="dockerfile" server-name="阿里云（3号）">
+  <configuration default="false" name="prod" type="docker-deploy" factoryName="dockerfile" server-name="阿里云（1号）">
     <deployment type="dockerfile">
       <settings>
         <option name="imageTag" value="fries-ai-manager-web" />
@@ -16,6 +16,13 @@
         <option name="sourceFilePath" value="deploy/prod/Dockerfile" />
       </settings>
     </deployment>
-    <method v="2" />
+    <method v="2">
+      <option name="NpmBeforeRunTask" enabled="true">
+        <package-json value="$PROJECT_DIR$/package.json" />
+        <command value="build" />
+        <node-interpreter value="project" />
+        <envs />
+      </option>
+    </method>
   </configuration>
 </component>
