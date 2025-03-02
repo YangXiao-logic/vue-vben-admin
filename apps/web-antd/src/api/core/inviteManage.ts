@@ -1,12 +1,21 @@
 import { requestClient } from '#/api/request';
 
 export namespace InviteManageApi {
+  export enum VipRechargeType {
+    RegularVipFiveDay = 'regular_vip_five_day',
+    RegularVipHalfYear = 'regular_vip_half_year',
+    RegularVipMonth = 'regular_vip_month',
+    RegularVipThreeDay = 'regular_vip_three_day',
+    RegularVipTwoDay = 'regular_vip_two_day',
+    RegularVipWeek = 'regular_vip_week',
+  }
   /** 特殊邀请码接口 */
   export interface SpecialInviteCode {
     inviteCodeId?: string | null;
     inviteCode?: string | null;
     description?: string | null;
     userEmail?: string | null;
+    vipRechargeType: VipRechargeType;
   }
 
   /** 邀请历史记录接口 */
@@ -20,6 +29,13 @@ export namespace InviteManageApi {
   export interface AddSpecialInviteCodeParams {
     account?: string | null;
     description?: string | null;
+    vipRechargeType: VipRechargeType;
+  }
+
+  /** 更新特殊邀请码描述请求参数 */
+  export interface UpdateSpecialInviteCodeParams {
+    description: string;
+    vipRechargeType: VipRechargeType;
   }
 }
 
@@ -49,13 +65,13 @@ export async function addSpecialInviteCodeApi(
  */
 export async function updateSpecialInviteCodeDescriptionApi(
   inviteCodeId: string,
-  description: string,
+  data: InviteManageApi.UpdateSpecialInviteCodeParams,
 ) {
   return requestClient.post(
     '/invite-manage/update-special-invite-code-description',
-    null,
     {
-      params: { inviteCodeId, description },
+      inviteCodeId,
+      ...data,
     },
   );
 }

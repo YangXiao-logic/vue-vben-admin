@@ -10,6 +10,7 @@ import {
   Table,
   Tag,
   Tooltip,
+  Select,
 } from 'ant-design-vue';
 import { EyeOutlined, CopyOutlined, EditOutlined } from '@ant-design/icons-vue';
 
@@ -18,8 +19,8 @@ import {
   addSpecialInviteCodeApi,
   updateSpecialInviteCodeDescriptionApi,
   getInviteHistoryApi,
+  InviteManageApi,
 } from '#/api/core/inviteManage';
-import type { InviteManageApi } from '#/api/core/inviteManage';
 
 // 表格加载状态
 const loading = ref(false);
@@ -29,6 +30,7 @@ const inviteCodeList = ref<InviteManageApi.SpecialInviteCode[]>([]);
 const formData = ref({
   account: '',
   description: '',
+  vipRechargeType: InviteManageApi.VipRechargeType.RegularVipMonth,
 });
 
 // 邀请历史记录相关
@@ -41,6 +43,37 @@ const inviteHistoryList = ref<InviteManageApi.InviteHistory[]>([]);
 const editDescModalVisible = ref<boolean>(false);
 const editingInviteCode = ref<InviteManageApi.SpecialInviteCode | null>(null);
 const newDescription = ref<string>('');
+const newVipRechargeType = ref<InviteManageApi.VipRechargeType>(
+  InviteManageApi.VipRechargeType.RegularVipMonth,
+);
+
+// VIP充值类型选项
+const vipRechargeTypeOptions = [
+  {
+    label: '两天会员',
+    value: InviteManageApi.VipRechargeType.RegularVipTwoDay,
+  },
+  {
+    label: '三天会员',
+    value: InviteManageApi.VipRechargeType.RegularVipThreeDay,
+  },
+  {
+    label: '五天会员',
+    value: InviteManageApi.VipRechargeType.RegularVipFiveDay,
+  },
+  {
+    label: '周会员',
+    value: InviteManageApi.VipRechargeType.RegularVipWeek,
+  },
+  {
+    label: '月度会员',
+    value: InviteManageApi.VipRechargeType.RegularVipMonth,
+  },
+  {
+    label: '半年会员',
+    value: InviteManageApi.VipRechargeType.RegularVipHalfYear,
+  },
+];
 
 // 获取邀请码列表
 const fetchInviteCodeList = async () => {
@@ -64,16 +97,20 @@ const handleGenerateInviteCode = async () => {
       return;
     }
 
-    const res = await addSpecialInviteCodeApi({
+    const params = {
       account: formData.value.account,
       description: formData.value.description,
-    });
+      vipRechargeType: formData.value.vipRechargeType,
+    };
+
+    const res = await addSpecialInviteCodeApi(params);
 
     message.success('特殊邀请码生成成功');
     // 清空表单
     formData.value = {
       account: '',
       description: '',
+      vipRechargeType: InviteManageApi.VipRechargeType.RegularVipMonth,
     };
     fetchInviteCodeList();
   } catch (error) {
@@ -123,6 +160,7 @@ const handleViewHistory = async (record: InviteManageApi.SpecialInviteCode) => {
 const handleEditDescription = (record: InviteManageApi.SpecialInviteCode) => {
   editingInviteCode.value = record;
   newDescription.value = record.description || '';
+  newVipRechargeType.value = record.vipRechargeType;
   editDescModalVisible.value = true;
 };
 
@@ -134,11 +172,16 @@ const handleSaveDescription = async () => {
   }
 
   try {
+    const updateData = {
+      description: newDescription.value,
+      vipRechargeType: newVipRechargeType.value,
+    };
+
     await updateSpecialInviteCodeDescriptionApi(
       editingInviteCode.value.inviteCodeId,
-      newDescription.value,
+      updateData,
     );
-    message.success('描述更新成功');
+    message.success('更新成功');
     editDescModalVisible.value = false;
     fetchInviteCodeList();
   } catch (error) {
@@ -157,6 +200,16 @@ const formatTime = (time: any) => {
   }
 
   return time;
+};
+
+// 获取VIP充值类型显示文本
+const getVipRechargeTypeText = (
+  type: InviteManageApi.VipRechargeType | string | null,
+) => {
+  if (!type) return '-';
+
+  const option = vipRechargeTypeOptions.find((opt) => opt.value === type);
+  return option ? option.label : type;
 };
 
 // 邀请码列表表格列定义
@@ -191,6 +244,18 @@ const columns = [
       }
 
       return text;
+    },
+  },
+  {
+    title: 'VIP充值类型',
+    dataIndex: 'vipRechargeType',
+    key: 'vipRechargeType',
+    customRender: ({ text }: { text: InviteManageApi.VipRechargeType }) => {
+      return h(
+        Tag,
+        { color: 'purple' },
+        { default: () => getVipRechargeTypeText(text) },
+      );
     },
   },
   {
@@ -240,7 +305,7 @@ const columns = [
           {
             default: () => [
               h(EditOutlined, { style: { marginRight: '4px' } }),
-              '编辑描述标记',
+              '编辑',
             ],
           },
         ),
@@ -269,7 +334,11 @@ const historyColumns = [
     key: 'vipRechargeType',
     customRender: ({ text }: { text: string | null }) => {
       if (!text) return '-';
-      return h(Tag, { color: 'blue' }, { default: () => text });
+      return h(
+        Tag,
+        { color: 'purple' },
+        { default: () => getVipRechargeTypeText(text) },
+      );
     },
   },
 ];
@@ -297,20 +366,29 @@ onMounted(() => {
               placeholder="请输入邮箱账号"
             />
           </div>
-          <div class="col-span-1 md:col-span-2">
+          <div class="col-span-1">
             <div class="label mb-1">描述标记</div>
-            <div class="flex">
-              <Input
-                v-model:value="formData.description"
-                placeholder="请输入描述，如：小红书/大使/公众号等"
-                class="mr-2 flex-1"
+            <Input
+              v-model:value="formData.description"
+              placeholder="请输入描述，如：小红书/大使/公众号等"
+              class="mb-2"
+            />
+            <div class="mb-2 text-xs text-gray-400">
+              提示：可以添加"小红书"、"大使"、"公众号"等标记，系统会自动显示对应颜色的标签
+            </div>
+          </div>
+          <div class="col-span-1 md:col-span-1">
+            <div class="label mb-1">VIP充值类型</div>
+            <div class="flex gap-2">
+              <Select
+                v-model:value="formData.vipRechargeType"
+                :options="vipRechargeTypeOptions"
+                style="width: 100%"
               />
+
               <Button type="primary" @click="handleGenerateInviteCode"
                 >生成邀请码</Button
               >
-            </div>
-            <div class="mt-1 text-xs text-gray-400">
-              提示：可以添加"小红书"、"大使"、"公众号"等标记，系统会自动显示对应颜色的标签
             </div>
           </div>
         </div>
@@ -336,6 +414,7 @@ onMounted(() => {
           showTotal: (total) => `共 ${total} 条`,
           pageSize: 10,
         }"
+        :scroll="{ x: 1000 }"
       />
 
       <!-- 邀请历史对话框 -->
@@ -362,15 +441,23 @@ onMounted(() => {
         />
       </Modal>
 
-      <!-- 编辑描述对话框 -->
+      <!-- 编辑对话框 -->
       <Modal
-        title="编辑描述标记"
+        title="编辑信息"
         v-model:open="editDescModalVisible"
         :maskClosable="false"
         centered
         @ok="handleSaveDescription"
       >
         <div class="form-container">
+          <div class="form-item mb-4">
+            <div class="label mb-1">VIP充值类型</div>
+            <Select
+              v-model:value="newVipRechargeType"
+              :options="vipRechargeTypeOptions"
+              style="width: 100%"
+            />
+          </div>
           <div class="form-item mb-4">
             <div class="label mb-1">描述标记</div>
             <Input
