@@ -220,7 +220,7 @@ const columns = [
     key: 'inviteCode',
   },
   {
-    title: '用户邮箱',
+    title: '用户账号',
     dataIndex: 'userEmail',
     key: 'userEmail',
     customRender: ({ text }: { text: string | null }) => {
@@ -363,7 +363,7 @@ onMounted(() => {
             <div class="label mb-1">账号</div>
             <Input
               v-model:value="formData.account"
-              placeholder="请输入邮箱账号"
+              placeholder="请输入账号（邮箱或手机号）"
             />
           </div>
           <div class="col-span-1">
