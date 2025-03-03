@@ -21,6 +21,7 @@ import {
   getInviteHistoryApi,
   InviteManageApi,
 } from '#/api/core/inviteManage';
+import { formatDateTime } from '@vben/utils';
 
 // 表格加载状态
 const loading = ref(false);
@@ -190,17 +191,6 @@ const handleSaveDescription = async () => {
 };
 
 // 格式化时间
-const formatTime = (time: any) => {
-  if (!time) return '-';
-
-  if (typeof time === 'object' && time.seconds) {
-    // 处理Instant类型
-    const date = new Date(Number(time.seconds) * 1000);
-    return date.toLocaleString();
-  }
-
-  return time;
-};
 
 // 获取VIP充值类型显示文本
 const getVipRechargeTypeText = (
@@ -320,7 +310,7 @@ const historyColumns = [
     title: '时间',
     dataIndex: 'createTime',
     key: 'createTime',
-    customRender: ({ text }: { text: any }) => formatTime(text),
+    customRender: ({ text }: { text: any }) => formatDateTime(text),
   },
   {
     title: '用户账号',
@@ -438,6 +428,7 @@ onMounted(() => {
           :columns="historyColumns"
           :dataSource="inviteHistoryList"
           :pagination="false"
+          :scroll="{ x: 600, y: 500 }"
         />
       </Modal>
 
