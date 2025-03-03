@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="prod" type="docker-deploy" factoryName="dockerfile" server-name="阿里云（1号）">
+  <configuration default="false" name="prod" type="docker-deploy" factoryName="dockerfile" server-name="阿里云（3号）">
     <deployment type="dockerfile">
       <settings>
         <option name="imageTag" value="fries-ai-manager-web" />
