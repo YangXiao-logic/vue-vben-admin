@@ -4,6 +4,7 @@ import { h, onMounted, ref } from 'vue';
 import {
   Button,
   Card,
+  DatePicker,
   Input,
   message,
   Modal,
@@ -12,156 +13,203 @@ import {
   Tag,
 } from 'ant-design-vue';
 
+import {
+  addUserApi,
+  giftVipApi,
+  getUserListApi,
+  UserManageApi,
+} from '#/api/core/userManage';
+
+// ===== 状态变量 =====
 // 表格加载状态
 const loading = ref(false);
 // 用户列表数据
-const userList = ref<any[]>([]);
-// 搜索关键词
-const searchKeyword = ref<string>('');
-// 用户状态过滤
-const statusFilter = ref<string>('all');
-// 添加/编辑用户对话框可见性
-const userModalVisible = ref<boolean>(false);
-// 当前编辑的用户
-const currentUser = ref<any>(null);
-// 表单数据
-const formData = ref({
-  username: '',
-  realName: '',
-  email: '',
-  phone: '',
-  status: 'active',
-  role: 'user',
+const userList = ref<UserManageApi.UserInfo[]>([]);
+
+// 搜索相关状态
+const searchForm = ref<Partial<UserManageApi.UserQueryParams>>({ isVip: false });
+const registerTimeRange = ref<any[]>([]);
+const vipExpirationTimeRange = ref<any[]>([]);
+
+// 添加用户相关状态
+const userModalVisible = ref(false);
+const addUserLoading = ref(false);
+const formData = ref<UserManageApi.AddUserParams>({
+  primaryEmail: '',
+  password: '',
+  inviteCode: '',
+  otherEmails: [],
 });
+const otherEmailInput = ref('');
 
-// 模拟用户数据
-const mockUserData = () => {
-  const statusOptions = ['active', 'inactive', 'locked'];
-  const roleOptions = ['admin', 'user', 'guest'];
+// 赠送VIP相关状态
+const vipGiftModalVisible = ref(false);
+const giftVipLoading = ref(false);
+const selectedUserEmail = ref('');
+const selectedVipType = ref(UserManageApi.VipRechargeTypeEnum.REGULAR_VIP_FIVE_DAY);
 
-  return Array.from({ length: 20 }).map((_, index) => ({
-    id: `user_${index + 1}`,
-    username: `user${index + 1}`,
-    realName: `用户${index + 1}`,
-    email: `user${index + 1}@example.com`,
-    phone: `1381234${String(index + 1).padStart(4, '0')}`,
-    status: statusOptions[Math.floor(Math.random() * statusOptions.length)],
-    role: roleOptions[Math.floor(Math.random() * roleOptions.length)],
-    createTime: new Date(
-      Date.now() - Math.floor(Math.random() * 90) * 24 * 60 * 60 * 1000,
-    )
-      .toISOString()
-      .split('T')[0],
-  }));
+// ===== 工具函数 =====
+// 移除对象中的空值
+const removeEmptyValues = (obj: Record<string, any>) => {
+  const result: Record<string, any> = {};
+  Object.keys(obj).forEach(key => {
+    const value = obj[key];
+    if (value !== '' && value !== null && value !== undefined) {
+      result[key] = value;
+    }
+  });
+  return result;
+};
+
+// ===== 事件处理函数 =====
+// 处理注册时间范围变化
+const handleRegisterTimeChange = (dates: any) => {
+  if (dates && dates.length === 2) {
+    searchForm.value.registerStartTime = dates[0]?.format('YYYY-MM-DDT00:00:00Z');
+    searchForm.value.registerEndTime = dates[1]?.format('YYYY-MM-DDT23:59:59Z');
+  } else {
+    delete searchForm.value.registerStartTime;
+    delete searchForm.value.registerEndTime;
+  }
+};
+
+// 处理VIP到期时间范围变化
+const handleVipExpirationTimeChange = (dates: any) => {
+  if (dates && dates.length === 2) {
+    searchForm.value.vipExpirationStartTime = dates[0]?.format('YYYY-MM-DDT00:00:00Z');
+    searchForm.value.vipExpirationEndTime = dates[1]?.format('YYYY-MM-DDT23:59:59Z');
+  } else {
+    delete searchForm.value.vipExpirationStartTime;
+    delete searchForm.value.vipExpirationEndTime;
+  }
 };
 
 // 获取用户列表
 const fetchUserList = async () => {
   try {
     loading.value = true;
-    // 模拟API调用
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    userList.value = mockUserData();
+    const params = removeEmptyValues(searchForm.value);
+    const res = await getUserListApi(params as UserManageApi.UserQueryParams);
+    userList.value = Array.isArray(res.data.data) ? res.data.data : [];
+    if (userList.value.length === 0) {
+      message.info('暂无符合条件的用户');
+    }
   } catch (error) {
-    console.log(error);
-    message.error('获取用户列表失败');
+    console.error('获取用户列表出错:', error);
+    message.error('获取用户列表失败，请稍后重试');
+    userList.value = [];
   } finally {
     loading.value = false;
   }
 };
 
 // 搜索用户
-const handleSearch = () => {
-  fetchUserList();
-};
+const handleSearch = () => fetchUserList();
 
 // 重置搜索
 const handleReset = () => {
-  searchKeyword.value = '';
-  statusFilter.value = 'all';
+  searchForm.value = { isVip: false };
+  registerTimeRange.value = [];
+  vipExpirationTimeRange.value = [];
   fetchUserList();
 };
 
 // 添加用户
 const handleAddUser = () => {
-  currentUser.value = null;
   formData.value = {
-    username: '',
-    realName: '',
-    email: '',
-    phone: '',
-    status: 'active',
-    role: 'user',
+    primaryEmail: '',
+    password: '',
+    inviteCode: '',
+    otherEmails: [],
   };
+  otherEmailInput.value = '';
   userModalVisible.value = true;
 };
 
-// 编辑用户
-const handleEditUser = (record: any) => {
-  currentUser.value = record;
-  formData.value = {
-    username: record.username,
-    realName: record.realName,
-    email: record.email,
-    phone: record.phone,
-    status: record.status,
-    role: record.role,
-  };
-  userModalVisible.value = true;
-};
-
-// 保存用户
-const handleSaveUser = async () => {
-  try {
-    // 模拟API调用
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    if (currentUser.value) {
-      message.success('用户信息更新成功');
-    } else {
-      message.success('用户添加成功');
-    }
-
-    userModalVisible.value = false;
-    fetchUserList();
-  } catch (error) {
-    console.log(error);
-    message.error('操作失败');
+// 添加其他邮箱
+const handleAddOtherEmail = () => {
+  if (otherEmailInput.value.trim()) {
+    formData.value.otherEmails.push(otherEmailInput.value);
+    otherEmailInput.value = '';
   }
 };
 
-// 删除用户
-const handleDeleteUser = async (record: any) => {
-  Modal.confirm({
-    title: '确认删除',
-    content: `确定要删除用户 "${record.realName}" 吗？`,
-    okText: '确认',
-    cancelText: '取消',
-    onOk: async () => {
-      try {
-        // 模拟API调用
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        message.success('用户删除成功');
-        fetchUserList();
-      } catch (error) {
-        console.log(error);
-        message.error('删除失败');
-      }
-    },
-  });
+// 移除其他邮箱
+const handleRemoveOtherEmail = (index: number) => {
+  formData.value.otherEmails.splice(index, 1);
+};
+
+// 打开赠送VIP对话框
+const handleOpenVipGiftModal = (email: string) => {
+  selectedUserEmail.value = email;
+  vipGiftModalVisible.value = true;
+};
+
+// 表单提交处理函数
+const handleSubmit = async (type: 'user' | 'vip') => {
+  if (type === 'user') {
+    // 添加用户
+    if (addUserLoading.value) return;
+    
+    // 验证必填字段
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!formData.value.primaryEmail || !emailRegex.test(formData.value.primaryEmail)) {
+      message.warning('请输入有效的主邮箱');
+      return;
+    }
+    
+    if (!formData.value.password || formData.value.password.length < 6) {
+      message.warning('密码长度至少为6位');
+      return;
+    }
+
+    try {
+      addUserLoading.value = true;
+      
+      // 准备数据
+      const userData = { ...formData.value };
+      await addUserApi(userData);
+      message.success('用户添加成功');
+      userModalVisible.value = false;
+      fetchUserList();
+    } catch (error) {
+      console.error('添加用户出错:', error);
+      message.error('添加用户失败，请稍后重试');
+    } finally {
+      addUserLoading.value = false;
+    }
+  } else {
+    // 赠送VIP
+    if (giftVipLoading.value) return;
+    
+    if (!selectedUserEmail.value) {
+      message.warning('请选择用户');
+      return;
+    }
+
+    try {
+      giftVipLoading.value = true;
+      
+      await giftVipApi(selectedUserEmail.value, selectedVipType.value);
+      message.success('VIP赠送成功');
+      vipGiftModalVisible.value = false;
+      fetchUserList();
+    } catch (error) {
+      console.error('赠送VIP出错:', error);
+      message.error('VIP赠送失败，请稍后重试');
+    } finally {
+      giftVipLoading.value = false;
+    }
+  }
 };
 
 // 表格列定义
 const columns = [
   {
-    title: '用户名',
-    dataIndex: 'username',
-    key: 'username',
-  },
-  {
-    title: '姓名',
-    dataIndex: 'realName',
-    key: 'realName',
+    title: '用户ID',
+    dataIndex: 'userId',
+    key: 'userId',
+    width: 220,
   },
   {
     title: '邮箱',
@@ -172,88 +220,55 @@ const columns = [
     title: '手机号',
     dataIndex: 'phone',
     key: 'phone',
+    customRender: ({ text }: { text: string | null }) => text || '未绑定',
   },
   {
-    title: '状态',
-    dataIndex: 'status',
-    key: 'status',
-    customRender: ({ text }: { text: string }) => {
-      const statusMap: Record<string, { color: string; label: string }> = {
-        active: { color: 'success', label: '正常' },
-        inactive: { color: 'default', label: '未激活' },
-        locked: { color: 'error', label: '已锁定' },
-      };
-      const { color, label } = statusMap[text] || {
-        color: 'default',
-        label: text,
-      };
-      return h(Tag, { color }, { default: () => label });
-    },
+    title: 'VIP状态',
+    dataIndex: 'isVip',
+    key: 'isVip',
+    customRender: ({ text }: { text: boolean }) => h(
+      Tag,
+      { color: text ? 'success' : 'default' },
+      { default: () => (text ? 'VIP' : '普通用户') }
+    ),
   },
   {
-    title: '角色',
-    dataIndex: 'role',
-    key: 'role',
-    customRender: ({ text }: { text: string }) => {
-      const roleMap: Record<string, { color: string; label: string }> = {
-        admin: { color: 'blue', label: '管理员' },
-        user: { color: 'green', label: '普通用户' },
-        guest: { color: 'orange', label: '访客' },
-      };
-      const { color, label } = roleMap[text] || {
-        color: 'default',
-        label: text,
-      };
-      return h(Tag, { color }, { default: () => label });
-    },
+    title: '注册时间',
+    dataIndex: 'registerTime',
+    key: 'registerTime',
   },
   {
-    title: '创建时间',
-    dataIndex: 'createTime',
-    key: 'createTime',
+    title: 'VIP到期时间',
+    dataIndex: 'vipExpirationTime',
+    key: 'vipExpirationTime',
+    customRender: ({ text }: { text: string }) => text || '未开通VIP',
   },
   {
     title: '操作',
     key: 'action',
-    customRender: ({ record }: { record: any }) => {
-      return h('div', [
-        h(
-          Button,
-          {
-            type: 'link',
-            onClick: () => handleEditUser(record),
-          },
-          { default: () => '编辑' },
-        ),
-        h(
-          Button,
-          {
-            type: 'link',
-            danger: true,
-            onClick: () => handleDeleteUser(record),
-          },
-          { default: () => '删除' },
-        ),
-      ]);
-    },
+    width: 180,
+    customRender: ({ record }: { record: UserManageApi.UserInfo }) => h(
+      Button,
+      {
+        type: 'link',
+        onClick: () => handleOpenVipGiftModal(record.email),
+      },
+      { default: () => '赠送VIP' }
+    ),
   },
 ];
 
-// 状态选项
-const statusOptions = [
-  { label: '全部', value: 'all' },
-  { label: '正常', value: 'active' },
-  { label: '未激活', value: 'inactive' },
-  { label: '已锁定', value: 'locked' },
+// VIP类型选项
+const vipTypeOptions = [
+  { label: '2天VIP', value: UserManageApi.VipRechargeTypeEnum.REGULAR_VIP_TWO_DAY },
+  { label: '3天VIP', value: UserManageApi.VipRechargeTypeEnum.REGULAR_VIP_THREE_DAY },
+  { label: '5天VIP', value: UserManageApi.VipRechargeTypeEnum.REGULAR_VIP_FIVE_DAY },
+  { label: '一周VIP', value: UserManageApi.VipRechargeTypeEnum.REGULAR_VIP_WEEK },
+  { label: '一个月VIP', value: UserManageApi.VipRechargeTypeEnum.REGULAR_VIP_MONTH },
+  { label: '半年VIP', value: UserManageApi.VipRechargeTypeEnum.REGULAR_VIP_HALF_YEAR },
 ];
 
-// 角色选项
-const roleOptions = [
-  { label: '管理员', value: 'admin' },
-  { label: '普通用户', value: 'user' },
-  { label: '访客', value: 'guest' },
-];
-
+// 初始化加载
 onMounted(() => {
   fetchUserList();
 });
@@ -265,17 +280,55 @@ onMounted(() => {
       <!-- 搜索区域 -->
       <div class="search-container mb-4 flex flex-wrap items-center gap-4">
         <Input
-          v-model:value="searchKeyword"
-          placeholder="请输入用户名/姓名/邮箱"
-          style="width: 240px"
+          v-model:value="searchForm.userId"
+          placeholder="用户ID"
+          style="width: 180px"
           @pressEnter="handleSearch"
+          allowClear
+        />
+        <Input
+          v-model:value="searchForm.email"
+          placeholder="邮箱"
+          style="width: 180px"
+          @pressEnter="handleSearch"
+          allowClear
+        />
+        <Input
+          v-model:value="searchForm.phone"
+          placeholder="手机号"
+          style="width: 180px"
+          @pressEnter="handleSearch"
+          allowClear
         />
         <Select
-          v-model:value="statusFilter"
+          v-model:value="searchForm.isVip"
           style="width: 120px"
-          placeholder="状态"
-          :options="statusOptions"
+          placeholder="VIP状态"
+          :options="[
+            { label: '所有用户', value: undefined },
+            { label: 'VIP用户', value: true },
+            { label: '普通用户', value: false },
+          ]"
+          allowClear
         />
+        <div>
+          <span>注册时间：</span>
+          <DatePicker.RangePicker
+            v-model:value="registerTimeRange"
+            style="width: 240px"
+            @change="handleRegisterTimeChange"
+            allowClear
+          />
+        </div>
+        <div>
+          <span>VIP到期时间：</span>
+          <DatePicker.RangePicker
+            v-model:value="vipExpirationTimeRange"
+            style="width: 240px"
+            @change="handleVipExpirationTimeChange"
+            allowClear
+          />
+        </div>
         <Button type="primary" @click="handleSearch">搜索</Button>
         <Button @click="handleReset">重置</Button>
         <Button type="primary" @click="handleAddUser">添加用户</Button>
@@ -286,64 +339,118 @@ onMounted(() => {
         :loading="loading"
         :columns="columns"
         :dataSource="userList"
-        rowKey="id"
+        rowKey="userId"
         :pagination="{
           showSizeChanger: true,
           showQuickJumper: true,
           showTotal: (total) => `共 ${total} 条`,
           pageSize: 10,
-          total: userList.length,
         }"
       />
 
-      <!-- 添加/编辑用户对话框 -->
+      <!-- 添加用户对话框 -->
       <Modal
-        :title="currentUser ? '编辑用户' : '添加用户'"
+        title="添加用户"
         v-model:open="userModalVisible"
         :maskClosable="false"
         centered
-        @ok="handleSaveUser"
+        :footer="null"
+        width="600px"
       >
         <div class="form-container">
           <div class="form-item mb-4">
-            <div class="label mb-1">用户名</div>
+            <div class="label mb-1">主邮箱 <span class="text-red-500">*</span></div>
             <Input
-              v-model:value="formData.username"
-              placeholder="请输入用户名"
+              v-model:value="formData.primaryEmail"
+              placeholder="请输入主邮箱"
+            />
+            <div class="text-xs text-gray-400 mt-1">主邮箱将作为账号登录使用</div>
+          </div>
+          <div class="form-item mb-4">
+            <div class="label mb-1">密码 <span class="text-red-500">*</span></div>
+            <Input.Password
+              v-model:value="formData.password"
+              placeholder="请输入密码"
+            />
+            <div class="text-xs text-gray-400 mt-1">密码长度至少为6位</div>
+          </div>
+          <div class="form-item mb-4">
+            <div class="label mb-1">邀请码 <span class="text-red-500">*</span></div>
+            <Input
+              v-model:value="formData.inviteCode"
+              placeholder="请输入邀请码"
             />
           </div>
           <div class="form-item mb-4">
-            <div class="label mb-1">姓名</div>
-            <Input v-model:value="formData.realName" placeholder="请输入姓名" />
+            <div class="label mb-1">其他邮箱</div>
+            <div class="flex gap-2">
+              <Input
+                v-model:value="otherEmailInput"
+                placeholder="请输入其他邮箱"
+                @pressEnter="handleAddOtherEmail"
+              />
+              <Button type="primary" @click="handleAddOtherEmail">添加</Button>
+            </div>
+            <div class="other-emails mt-2">
+              <Tag 
+                v-for="(email, index) in formData.otherEmails" 
+                :key="index"
+                closable
+                @close="handleRemoveOtherEmail(index)"
+                class="mb-1 mr-1"
+              >
+                {{ email }}
+              </Tag>
+            </div>
+          </div>
+        </div>
+        <div class="mt-4 flex justify-end gap-2">
+          <Button @click="userModalVisible = false">取消</Button>
+          <Button 
+            type="primary" 
+            :loading="addUserLoading" 
+            @click="handleSubmit('user')"
+          >
+            确认添加
+          </Button>
+        </div>
+      </Modal>
+
+      <!-- 赠送VIP对话框 -->
+      <Modal
+        title="赠送VIP"
+        v-model:open="vipGiftModalVisible"
+        :maskClosable="false"
+        centered
+        :footer="null"
+      >
+        <div class="form-container">
+          <div class="form-item mb-4">
+            <div class="label mb-1">用户邮箱</div>
+            <Input
+              v-model:value="selectedUserEmail"
+              placeholder="用户邮箱"
+              disabled
+            />
           </div>
           <div class="form-item mb-4">
-            <div class="label mb-1">邮箱</div>
-            <Input v-model:value="formData.email" placeholder="请输入邮箱" />
-          </div>
-          <div class="form-item mb-4">
-            <div class="label mb-1">手机号</div>
-            <Input v-model:value="formData.phone" placeholder="请输入手机号" />
-          </div>
-          <div class="form-item mb-4">
-            <div class="label mb-1">状态</div>
+            <div class="label mb-1">VIP类型 <span class="text-red-500">*</span></div>
             <Select
-              v-model:value="formData.status"
+              v-model:value="selectedVipType"
               style="width: 100%"
-              :options="[
-                { label: '正常', value: 'active' },
-                { label: '未激活', value: 'inactive' },
-                { label: '已锁定', value: 'locked' },
-              ]"
+              :options="vipTypeOptions"
             />
           </div>
-          <div class="form-item mb-4">
-            <div class="label mb-1">角色</div>
-            <Select
-              v-model:value="formData.role"
-              style="width: 100%"
-              :options="roleOptions"
-            />
-          </div>
+        </div>
+        <div class="mt-4 flex justify-end gap-2">
+          <Button @click="vipGiftModalVisible = false">取消</Button>
+          <Button 
+            type="primary" 
+            :loading="giftVipLoading" 
+            @click="handleSubmit('vip')"
+          >
+            确认赠送
+          </Button>
         </div>
       </Modal>
     </Card>
