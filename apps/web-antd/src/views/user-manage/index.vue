@@ -15,11 +15,49 @@ import {
 
 import {
   addUserApi,
+  getHistoryPaySituation,
+  getPaySituation,
   giftVipApi,
   getUserListApi,
   UserManageApi,
 } from '#/api/core/userManage';
 import { formatDateTime } from '@vben/utils';
+
+// 设备类型选项
+const deviceOptions = [
+  { label: 'iOS', value: 'iOS' },
+  { label: 'Android', value: 'Android' },
+  { label: 'Web', value: 'Web' },
+  { label: '其他', value: 'Other' },
+];
+
+// 渠道类型枚举
+enum ChannelEnum {
+  Campus = 'campus',
+  Friend = 'friend',
+  Other = 'other',
+}
+
+// 渠道类型选项
+const channelOptions = [
+  { label: '特殊邀请码', value: ChannelEnum.Campus },
+  { label: '普通邀请码', value: ChannelEnum.Friend },
+  { label: '其他', value: ChannelEnum.Other },
+];
+
+// 上传文件类型枚举
+enum UploadFileTypeEnum {
+  NoFileUpload = 'no_file_upload',
+  UploadPrivateFile = 'upload_private_file',
+  UploadPublicFile = 'upload_public_file',
+}
+
+// 上传文件类型选项
+const uploadFileTypeOptions = [
+  { label: '未上传文件', value: UploadFileTypeEnum.NoFileUpload },
+  { label: '已上传私有库', value: UploadFileTypeEnum.UploadPrivateFile },
+  { label: '已上传公有库', value: UploadFileTypeEnum.UploadPublicFile },
+];
 
 // ===== 状态变量 =====
 // 表格加载状态
@@ -28,9 +66,11 @@ const loading = ref(false);
 const userList = ref<UserManageApi.UserInfo[]>([]);
 
 // 搜索相关状态
-const searchForm = ref<Partial<UserManageApi.UserQueryParams>>({});
-const registerTimeRange = ref<any[]>([]);
-const vipExpirationTimeRange = ref<any[]>([]);
+const searchForm = ref<any>({});
+const registerTimeRange = ref<any>(undefined);
+const vipExpirationTimeRange = ref<any>(undefined);
+const activeTimeRange = ref<any>(undefined);
+const purchaseTimeRange = ref<any>(undefined);
 
 // 添加用户相关状态
 const userModalVisible = ref(false);
@@ -50,6 +90,18 @@ const selectedUserEmail = ref('');
 const selectedVipType = ref(
   UserManageApi.VipRechargeTypeEnum.REGULAR_VIP_TWO_DAY,
 );
+
+// 支付情况相关状态
+const payRecordModalVisible = ref(false);
+const payRecordLoading = ref(false);
+const payRecordData = ref<UserManageApi.PayRecordVo[]>([]);
+const selectedUserIdForPayRecord = ref('');
+
+// 邀请历史相关状态
+const inviteHistoryModalVisible = ref(false);
+const inviteHistoryLoading = ref(false);
+const inviteHistoryData = ref<UserManageApi.InviteHistoryVo[]>([]);
+const selectedUserIdForInviteHistory = ref('');
 
 // ===== 工具函数 =====
 // 移除对象中的空值
@@ -93,12 +145,46 @@ const handleVipExpirationTimeChange = (dates: any) => {
   }
 };
 
+// 处理活跃时间范围变化
+const handleActiveTimeChange = (dates: any) => {
+  if (dates && dates.length === 2) {
+    searchForm.value.activeStartTime = dates[0]?.format('YYYY-MM-DDT00:00:00Z');
+    searchForm.value.activeEndTime = dates[1]?.format('YYYY-MM-DDT23:59:59Z');
+  } else {
+    delete searchForm.value.activeStartTime;
+    delete searchForm.value.activeEndTime;
+  }
+};
+
+// 处理购买时间范围变化
+const handlePurchaseTimeChange = (dates: any) => {
+  if (dates && dates.length === 2) {
+    searchForm.value.purchaseStartTime = dates[0]?.format(
+      'YYYY-MM-DDT00:00:00Z',
+    );
+    searchForm.value.purchaseEndTime = dates[1]?.format('YYYY-MM-DDT23:59:59Z');
+  } else {
+    delete searchForm.value.purchaseStartTime;
+    delete searchForm.value.purchaseEndTime;
+  }
+};
+
 // 获取用户列表
 const fetchUserList = async () => {
   try {
     loading.value = true;
-    const params = removeEmptyValues(searchForm.value);
-    const res = await getUserListApi(params as UserManageApi.UserQueryParams);
+    // 深拷贝参数对象
+    const params = { ...removeEmptyValues(searchForm.value) };
+
+    // 处理布尔值转换
+    if (params.isVip === 'true') params.isVip = true;
+    if (params.isVip === 'false') params.isVip = false;
+    if (params.isPartnerSchool === 'true') params.isPartnerSchool = true;
+    if (params.isPartnerSchool === 'false') params.isPartnerSchool = false;
+
+    const res = await getUserListApi(params);
+
+    // 确保响应数据是数组
     userList.value = Array.isArray(res) ? res : [];
     if (userList.value.length === 0) {
       message.info('暂无符合条件的用户');
@@ -117,8 +203,10 @@ const handleSearch = () => fetchUserList();
 // 重置搜索
 const handleReset = () => {
   searchForm.value = {};
-  registerTimeRange.value = [];
-  vipExpirationTimeRange.value = [];
+  registerTimeRange.value = undefined;
+  vipExpirationTimeRange.value = undefined;
+  activeTimeRange.value = undefined;
+  purchaseTimeRange.value = undefined;
   fetchUserList();
 };
 
@@ -151,6 +239,38 @@ const handleRemoveOtherEmail = (index: number) => {
 const handleOpenVipGiftModal = (userId: string) => {
   selectedUserEmail.value = userId;
   vipGiftModalVisible.value = true;
+};
+
+// 打开支付情况对话框
+const handleOpenPayRecordModal = async (userId: string) => {
+  selectedUserIdForPayRecord.value = userId;
+  payRecordModalVisible.value = true;
+
+  try {
+    payRecordLoading.value = true;
+    const res = await getPaySituation(userId);
+    payRecordData.value = Array.isArray(res) ? res : [];
+  } catch (error) {
+    console.log(error);
+  } finally {
+    payRecordLoading.value = false;
+  }
+};
+
+// 打开邀请历史对话框
+const handleOpenInviteHistoryModal = async (userId: string) => {
+  selectedUserIdForInviteHistory.value = userId;
+  inviteHistoryModalVisible.value = true;
+
+  try {
+    inviteHistoryLoading.value = true;
+    const res = await getHistoryPaySituation(userId);
+    inviteHistoryData.value = Array.isArray(res) ? res : [];
+  } catch (error) {
+    console.log(error);
+  } finally {
+    inviteHistoryLoading.value = false;
+  }
 };
 
 // 表单提交处理函数
@@ -218,6 +338,11 @@ const handleSubmit = async (type: 'user' | 'vip') => {
 // 表格列定义
 const columns = [
   {
+    title: '用户ID',
+    dataIndex: 'userId',
+    key: 'userId',
+  },
+  {
     title: '邮箱',
     dataIndex: 'email',
     key: 'email',
@@ -227,6 +352,21 @@ const columns = [
     dataIndex: 'phone',
     key: 'phone',
     customRender: ({ text }: { text: string | null }) => text || '未绑定',
+  },
+  {
+    title: '设备',
+    dataIndex: 'device',
+    key: 'device',
+    customRender: ({ text }: { text: string | null }) => text || '未知',
+  },
+  {
+    title: '学校',
+    dataIndex: 'school',
+    key: 'school',
+    customRender: ({ text }: { text: string[] | null }) => {
+      if (!text || text.length === 0) return '未设置';
+      return text.join(', ');
+    },
   },
   {
     title: 'VIP状态',
@@ -253,18 +393,50 @@ const columns = [
       text ? formatDateTime(text) : '未开通VIP',
   },
   {
+    title: '首次购买时间',
+    dataIndex: 'firstPurchaseTime',
+    key: 'firstPurchaseTime',
+    customRender: ({ text }: { text: string }) =>
+      text ? formatDateTime(text) : '未购买',
+  },
+  {
+    title: '最近购买时间',
+    dataIndex: 'lastPurchaseTime',
+    key: 'lastPurchaseTime',
+    customRender: ({ text }: { text: string }) =>
+      text ? formatDateTime(text) : '未购买',
+  },
+  {
     title: '操作',
     key: 'action',
-    width: 180,
+    width: 300,
     customRender: ({ record }: { record: UserManageApi.UserInfo }) =>
-      h(
-        Button,
-        {
-          type: 'link',
-          onClick: () => handleOpenVipGiftModal(record.userId),
-        },
-        { default: () => '赠送VIP' },
-      ),
+      h('div', { class: 'flex gap-2' }, [
+        h(
+          Button,
+          {
+            type: 'link',
+            onClick: () => handleOpenVipGiftModal(record.userId || ''),
+          },
+          { default: () => '赠送VIP' },
+        ),
+        h(
+          Button,
+          {
+            type: 'link',
+            onClick: () => handleOpenPayRecordModal(record.userId || ''),
+          },
+          { default: () => '支付情况' },
+        ),
+        h(
+          Button,
+          {
+            type: 'link',
+            onClick: () => handleOpenInviteHistoryModal(record.userId || ''),
+          },
+          { default: () => '邀请历史' },
+        ),
+      ]),
   },
 ];
 
@@ -312,25 +484,29 @@ onMounted(() => {
         <Input
           v-model:value="searchForm.email"
           placeholder="邮箱"
-          style="width: 380px"
+          style="width: 180px"
           @pressEnter="handleSearch"
           allowClear
         />
         <Input
           v-model:value="searchForm.phone"
           placeholder="手机号"
-          style="width: 180px"
+          style="width: 160px"
+          @pressEnter="handleSearch"
+          allowClear
+        />
+        <Input
+          v-model:value="searchForm.school"
+          placeholder="学校"
+          style="width: 160px"
           @pressEnter="handleSearch"
           allowClear
         />
         <Select
-          v-model:value="searchForm.isVip"
+          v-model:value="searchForm.channelEnum"
           style="width: 120px"
-          placeholder="VIP状态"
-          :options="[
-            { label: 'VIP用户', value: true },
-            { label: '普通用户', value: false },
-          ]"
+          placeholder="注册渠道"
+          :options="channelOptions"
           allowClear
         />
         <div>
@@ -339,6 +515,35 @@ onMounted(() => {
             v-model:value="registerTimeRange"
             style="width: 240px"
             @change="handleRegisterTimeChange"
+            allowClear
+          />
+        </div>
+        <Select
+          v-model:value="searchForm.isPartnerSchool"
+          style="width: 180px"
+          placeholder="是否在合作学校"
+          :options="[
+            { label: '是', value: 'true' },
+            { label: '否', value: 'false' },
+          ]"
+          allowClear
+        />
+        <Select
+          v-model:value="searchForm.isVip"
+          style="width: 100px"
+          placeholder="VIP状态"
+          :options="[
+            { label: 'VIP用户', value: 'true' },
+            { label: '普通用户', value: 'false' },
+          ]"
+          allowClear
+        />
+        <div>
+          <span>VIP购买时间：</span>
+          <DatePicker.RangePicker
+            v-model:value="purchaseTimeRange"
+            style="width: 240px"
+            @change="handlePurchaseTimeChange"
             allowClear
           />
         </div>
@@ -351,6 +556,29 @@ onMounted(() => {
             allowClear
           />
         </div>
+        <Select
+          v-model:value="searchForm.uploadFileTypeEnum"
+          style="width: 140px"
+          placeholder="文件上传状态"
+          :options="uploadFileTypeOptions"
+          allowClear
+        />
+        <Select
+          v-model:value="searchForm.device"
+          style="width: 120px"
+          placeholder="设备类型"
+          :options="deviceOptions"
+          allowClear
+        />
+        <div>
+          <span>活跃时间：</span>
+          <DatePicker.RangePicker
+            v-model:value="activeTimeRange"
+            style="width: 240px"
+            @change="handleActiveTimeChange"
+            allowClear
+          />
+        </div>
         <Button type="primary" @click="handleSearch">搜索</Button>
         <Button @click="handleReset">重置</Button>
       </div>
@@ -360,14 +588,14 @@ onMounted(() => {
         :loading="loading"
         :columns="columns"
         :dataSource="userList"
-        rowKey="email"
+        rowKey="userId"
         :pagination="{
           showSizeChanger: true,
           showQuickJumper: true,
           showTotal: (total) => `共 ${total} 条`,
           pageSize: 10,
         }"
-        :scroll="{ x: 1000 }"
+        :scroll="{ x: 1200 }"
       />
 
       <!-- 添加用户对话框 -->
@@ -483,6 +711,149 @@ onMounted(() => {
           >
             确认赠送
           </Button>
+        </div>
+      </Modal>
+
+      <!-- 支付情况对话框 -->
+      <Modal
+        title="支付情况"
+        v-model:open="payRecordModalVisible"
+        :maskClosable="false"
+        centered
+        :footer="null"
+        width="800px"
+      >
+        <div v-if="payRecordLoading" class="py-4 text-center">
+          <div class="ant-spin ant-spin-lg ant-spin-spinning">
+            <span class="ant-spin-dot ant-spin-dot-spin">
+              <i class="ant-spin-dot-item"></i>
+              <i class="ant-spin-dot-item"></i>
+              <i class="ant-spin-dot-item"></i>
+              <i class="ant-spin-dot-item"></i>
+            </span>
+          </div>
+        </div>
+
+        <div v-else>
+          <div class="mb-4">
+            <div class="mb-1 font-bold">
+              用户ID: {{ selectedUserIdForPayRecord }}
+            </div>
+          </div>
+
+          <div
+            v-if="payRecordData.length === 0"
+            class="py-4 text-center text-gray-500"
+          >
+            暂无支付记录
+          </div>
+
+          <Table
+            v-else
+            :dataSource="payRecordData"
+            :pagination="false"
+            :columns="[
+              {
+                title: '交易单号',
+                dataIndex: 'outTradeNo',
+                key: 'outTradeNo',
+              },
+              {
+                title: '支付时间',
+                dataIndex: 'createTime',
+                key: 'createTime',
+                customRender: ({ text }) => formatDateTime(text),
+              },
+              {
+                title: '支付金额',
+                dataIndex: 'payAmount',
+                key: 'payAmount',
+              },
+              {
+                title: '支付类型',
+                dataIndex: 'payTypeDescription',
+                key: 'payTypeDescription',
+              },
+              {
+                title: '支付来源',
+                dataIndex: 'paySourceDescription',
+                key: 'paySourceDescription',
+              },
+              {
+                title: '是否赠送',
+                dataIndex: 'gifted',
+                key: 'gifted',
+                customRender: ({ text }) => (text ? '是' : '否'),
+              },
+            ]"
+          />
+        </div>
+        <div class="mt-4 flex justify-end gap-2">
+          <Button @click="payRecordModalVisible = false">关闭</Button>
+        </div>
+      </Modal>
+
+      <!-- 邀请历史对话框 -->
+      <Modal
+        title="邀请历史"
+        v-model:open="inviteHistoryModalVisible"
+        :maskClosable="false"
+        centered
+        :footer="null"
+        width="800px"
+      >
+        <div v-if="inviteHistoryLoading" class="py-4 text-center">
+          <div class="ant-spin ant-spin-lg ant-spin-spinning">
+            <span class="ant-spin-dot ant-spin-dot-spin">
+              <i class="ant-spin-dot-item"></i>
+              <i class="ant-spin-dot-item"></i>
+              <i class="ant-spin-dot-item"></i>
+              <i class="ant-spin-dot-item"></i>
+            </span>
+          </div>
+        </div>
+
+        <div v-else>
+          <div class="mb-4">
+            <div class="mb-1 font-bold">
+              用户ID: {{ selectedUserIdForInviteHistory }}
+            </div>
+          </div>
+
+          <div
+            v-if="inviteHistoryData.length === 0"
+            class="py-4 text-center text-gray-500"
+          >
+            暂无邀请历史
+          </div>
+
+          <Table
+            v-else
+            :dataSource="inviteHistoryData"
+            :pagination="false"
+            :columns="[
+              {
+                title: '创建时间',
+                dataIndex: 'createTime',
+                key: 'createTime',
+                customRender: ({ text }) => formatDateTime(text),
+              },
+              {
+                title: '被邀请用户',
+                dataIndex: 'toUserAccount',
+                key: 'toUserAccount',
+                customRender: ({ text }) => text || '无',
+              },
+              {
+                title: 'VIP充值类型',
+                dataIndex: 'vipRechargeType',
+                key: 'vipRechargeType',
+              },
+            ]"
+          />
+        </div>
+        <div class="mt-4 flex justify-end gap-2">
+          <Button @click="inviteHistoryModalVisible = false">关闭</Button>
         </div>
       </Modal>
     </Card>

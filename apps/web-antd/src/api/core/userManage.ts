@@ -9,6 +9,13 @@ export namespace UserManageApi {
     isVip: boolean;
     registerTime: string;
     vipExpirationTime: string;
+    activeDays: number;
+    device: string | null;
+    firstPurchaseTime: string;
+    lastPurchaseTime: string;
+    school: string[] | null;
+    uploadPrivateFileCount: number;
+    uploadPublicFileCount: number;
   }
 
   /** 用户查询参数接口 */
@@ -21,6 +28,16 @@ export namespace UserManageApi {
     registerEndTime?: string;
     vipExpirationStartTime?: string;
     vipExpirationEndTime?: string;
+    activeDays?: number;
+    activeStartTime?: string;
+    activeEndTime?: string;
+    channelEnum?: ChannelEnum;
+    device?: string | null;
+    isPartnerSchool?: boolean | null;
+    purchaseStartTime?: string;
+    purchaseEndTime?: string;
+    school?: string | null;
+    uploadFileTypeEnum?: UploadFileTypeEnum;
   }
 
   /** 添加用户参数接口 */
@@ -41,6 +58,20 @@ export namespace UserManageApi {
     REGULAR_VIP_HALF_YEAR = 'regular_vip_half_year',
   }
 
+  /** 渠道类型枚举 */
+  export enum ChannelEnum {
+    Campus = 'CAMPUS',
+    Friend = 'FRIEND',
+    Other = 'OTHER',
+  }
+
+  /** 上传文件类型枚举 */
+  export enum UploadFileTypeEnum {
+    NoFileUpload = 'NO_FILE_UPLOAD',
+    UploadPrivateFile = 'UPLOAD_PRIVATE_FILE',
+    UploadPublicFile = 'UPLOAD_PUBLIC_FILE',
+  }
+
   /** API响应接口 */
   export interface ApiResponse<T> {
     status: number;
@@ -48,11 +79,32 @@ export namespace UserManageApi {
     data: T;
     timestamp: number;
   }
+
+  export interface PayRecordVo {
+    outTradeNo?: string;
+    createTime: number;
+    payAmount?: number;
+    payType: PayTypeEnum;
+
+    paySourceDescription: string;
+    payTypeDescription: string;
+    gifted: boolean;
+  }
+
+  export enum PayTypeEnum {
+    PDF_PACKAGE = 'pdf_package',
+    VIP_RECHARGE = 'vip_recharge',
+  }
+
+  export interface InviteHistoryVo {
+    createTime: string;
+    toUserAccount: null | string;
+    vipRechargeType: string;
+  }
 }
 
 /**
  * 获取用户列表
- * 注意：后端使用GET请求但需要请求体，前端使用POST请求来兼容
  */
 export async function getUserListApi(data: UserManageApi.UserQueryParams) {
   return requestClient.post<
@@ -84,4 +136,26 @@ export async function giftVipApi(
       params: { userId, vipRechargeTypeEnum },
     },
   );
+}
+
+/**
+ * 获取用户支付情况
+ */
+export async function getPaySituation(userId: string) {
+  return requestClient.get<
+    UserManageApi.ApiResponse<UserManageApi.PayRecordVo[]>
+  >('/user-manage/get-pay-situation', {
+    params: { userId },
+  });
+}
+
+/**
+ * 获取用户历史邀请支付情况
+ */
+export async function getHistoryPaySituation(userId: string) {
+  return requestClient.get<
+    UserManageApi.ApiResponse<UserManageApi.InviteHistoryVo[]>
+  >('/user-manage/get-invite-history', {
+    params: { userId },
+  });
 }
