@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { h, onMounted, ref } from 'vue';
+import * as XLSX from 'xlsx';
 
 import {
   Button,
@@ -12,6 +13,7 @@ import {
   Table,
   Tag,
 } from 'ant-design-vue';
+import { DownloadOutlined } from '@ant-design/icons-vue';
 
 import {
   addUserApi,
@@ -21,6 +23,7 @@ import {
   getUserListApi,
   UserManageApi,
 } from '#/api/core/userManage';
+import { downloadFileFromBlobPart } from '@vben/utils';
 import { formatDateTime } from '@vben/utils';
 
 // 设备类型选项
@@ -114,6 +117,84 @@ const removeEmptyValues = (obj: Record<string, any>) => {
     }
   });
   return result;
+};
+
+// 导出Excel函数
+const exportToExcel = () => {
+  if (userList.value.length === 0) {
+    message.warning('暂无数据可导出');
+    return;
+  }
+
+  try {
+    // 准备导出数据
+    const exportData = userList.value.map((user) => {
+      // 格式化数据
+      const isVipText = user.isVip ? 'VIP' : '普通用户';
+      const schoolText =
+        user.school && user.school.length > 0
+          ? user.school.join(', ')
+          : '未设置';
+
+      // 获取渠道文本
+      let channelText = '未知';
+      const userAny = user as any;
+      if (userAny.channelEnum) {
+        const option = channelOptions.find(
+          (item) => item.value === userAny.channelEnum,
+        );
+        channelText = option ? option.label : '未知';
+      }
+
+      return {
+        用户ID: user.userId || '',
+        邮箱: user.email || '',
+        手机号: user.phone || '未绑定',
+        学校: schoolText,
+        注册渠道: channelText,
+        VIP状态: isVipText,
+        注册时间: user.registerTime ? formatDateTime(user.registerTime) : '',
+        VIP到期时间: user.vipExpirationTime
+          ? formatDateTime(user.vipExpirationTime)
+          : '未开通VIP',
+        首次购买时间: user.firstPurchaseTime
+          ? formatDateTime(user.firstPurchaseTime)
+          : '未购买',
+        最近购买时间: user.lastPurchaseTime
+          ? formatDateTime(user.lastPurchaseTime)
+          : '未购买',
+        公有库上传数量: user.uploadPublicFileCount || 0,
+        私有库上传数量: user.uploadPrivateFileCount || 0,
+      };
+    });
+
+    // 创建工作簿
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, '用户列表');
+
+    // 生成Excel文件并下载
+    const excelBuffer = XLSX.write(workbook, {
+      bookType: 'xlsx',
+      type: 'array',
+    });
+    const blob = new Blob([excelBuffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+
+    // 使用项目中的下载工具函数
+    const currentDate = new Date().toISOString();
+    const formattedDate = formatDateTime(currentDate);
+    downloadFileFromBlobPart({
+      fileName: `用户列表_${formattedDate}.xlsx`,
+      source: blob,
+    });
+
+    message.success('导出成功');
+  } catch (error) {
+    console.log(error);
+    message.error('导出失败');
+  }
 };
 
 // ===== 事件处理函数 =====
@@ -353,12 +434,12 @@ const columns = [
     key: 'phone',
     customRender: ({ text }: { text: string | null }) => text || '未绑定',
   },
-  {
-    title: '设备',
-    dataIndex: 'device',
-    key: 'device',
-    customRender: ({ text }: { text: string | null }) => text || '未知',
-  },
+  // {
+  //   title: '设备',
+  //   dataIndex: 'device',
+  //   key: 'device',
+  //   customRender: ({ text }: { text: string | null }) => text || '未知',
+  // },
   {
     title: '学校',
     dataIndex: 'school',
@@ -366,6 +447,15 @@ const columns = [
     customRender: ({ text }: { text: string[] | null }) => {
       if (!text || text.length === 0) return '未设置';
       return text.join(', ');
+    },
+  },
+  {
+    title: '注册渠道',
+    dataIndex: 'channelEnum',
+    key: 'channelEnum',
+    customRender: ({ text }: { text: string }) => {
+      const option = channelOptions.find((item) => item.value === text);
+      return option ? option.label : '未知';
     },
   },
   {
@@ -405,6 +495,18 @@ const columns = [
     key: 'lastPurchaseTime',
     customRender: ({ text }: { text: string }) =>
       text ? formatDateTime(text) : '未购买',
+  },
+  {
+    title: '公有库上传数量',
+    dataIndex: 'uploadPublicFileCount',
+    key: 'uploadPublicFileCount',
+    customRender: ({ text }: { text: number }) => text || 0,
+  },
+  {
+    title: '私有库上传数量',
+    dataIndex: 'uploadPrivateFileCount',
+    key: 'uploadPrivateFileCount',
+    customRender: ({ text }: { text: number }) => text || 0,
   },
   {
     title: '操作',
@@ -477,7 +579,13 @@ onMounted(() => {
 <template>
   <div class="user-manage-container">
     <Card title="用户管理" :bordered="false">
-      <Button type="primary" @click="handleAddUser">添加新用户</Button>
+      <div class="mb-4 flex gap-2">
+        <Button type="primary" @click="handleAddUser">添加新用户</Button>
+        <Button type="primary" @click="exportToExcel">
+          <template #icon><DownloadOutlined /></template>
+          导出Excel
+        </Button>
+      </div>
 
       <!-- 搜索区域 -->
       <div class="search-container my-4 flex flex-wrap items-center gap-4">
