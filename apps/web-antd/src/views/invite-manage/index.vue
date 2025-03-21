@@ -12,7 +12,13 @@ import {
   Tooltip,
   Select,
 } from 'ant-design-vue';
-import { EyeOutlined, CopyOutlined, EditOutlined } from '@ant-design/icons-vue';
+import {
+  EyeOutlined,
+  CopyOutlined,
+  EditOutlined,
+  DownloadOutlined,
+} from '@ant-design/icons-vue';
+import * as XLSX from 'xlsx';
 
 import {
   getInviteCodeListApi,
@@ -21,7 +27,7 @@ import {
   getInviteHistoryApi,
   InviteManageApi,
 } from '#/api/core/inviteManage';
-import { formatDateTime } from '@vben/utils';
+import { downloadFileFromBlobPart, formatDateTime } from '@vben/utils';
 
 // 表格加载状态
 const loading = ref(false);
@@ -190,8 +196,6 @@ const handleSaveDescription = async () => {
   }
 };
 
-// 格式化时间
-
 // 获取VIP充值类型显示文本
 const getVipRechargeTypeText = (
   type: InviteManageApi.VipRechargeType | string | null,
@@ -333,6 +337,108 @@ const historyColumns = [
   },
 ];
 
+// 导出邀请码列表为Excel
+const exportInviteCodeToExcel = () => {
+  if (inviteCodeList.value.length === 0) {
+    message.warning('暂无数据可导出');
+    return;
+  }
+
+  try {
+    // 准备导出数据
+    const exportData = inviteCodeList.value.map((item) => {
+      // 使用类型断言处理可能不存在的属性
+      const itemAny = item as any;
+
+      return {
+        邀请码: item.inviteCode || '',
+        用户账号: item.userEmail || '-',
+        描述标记: item.description || '-',
+        VIP充值类型: getVipRechargeTypeText(item.vipRechargeType),
+        创建时间: itemAny.createTime
+          ? formatDateTime(itemAny.createTime || '')
+          : '-',
+      };
+    });
+
+    // 创建工作簿
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, '邀请码列表');
+
+    // 生成Excel文件并下载
+    const excelBuffer = XLSX.write(workbook, {
+      bookType: 'xlsx',
+      type: 'array',
+    });
+    const blob = new Blob([excelBuffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+
+    // 使用项目中的下载工具函数
+    const currentDate = new Date().toISOString();
+    const formattedDate = formatDateTime(currentDate);
+    downloadFileFromBlobPart({
+      fileName: `邀请码列表_${formattedDate}.xlsx`,
+      source: blob,
+    });
+
+    message.success('导出成功');
+  } catch (error) {
+    console.log(error);
+    message.error('导出失败');
+  }
+};
+
+// 导出邀请历史为Excel
+const exportHistoryToExcel = () => {
+  if (inviteHistoryList.value.length === 0) {
+    message.warning('暂无数据可导出');
+    return;
+  }
+
+  try {
+    // 准备导出数据
+    const exportData = inviteHistoryList.value.map((item) => {
+      // 使用类型断言处理可能不存在的属性
+      const createTimeStr = (item.createTime || '') as string;
+
+      return {
+        时间: item.createTime ? formatDateTime(createTimeStr) : '-',
+        用户账号: item.toUserAccount || '-',
+        充值类型: getVipRechargeTypeText(item.vipRechargeType),
+      };
+    });
+
+    // 创建工作簿
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, '邀请历史');
+
+    // 生成Excel文件并下载
+    const excelBuffer = XLSX.write(workbook, {
+      bookType: 'xlsx',
+      type: 'array',
+    });
+    const blob = new Blob([excelBuffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+
+    // 使用项目中的下载工具函数
+    const currentDate = new Date().toISOString();
+    const formattedDate = formatDateTime(currentDate);
+    downloadFileFromBlobPart({
+      fileName: `邀请历史_${currentInviteCode.value}_${formattedDate}.xlsx`,
+      source: blob,
+    });
+
+    message.success('导出成功');
+  } catch (error) {
+    console.log(error);
+    message.error('导出失败');
+  }
+};
+
 onMounted(() => {
   fetchInviteCodeList();
 });
@@ -392,6 +498,14 @@ onMounted(() => {
         </div>
       </div>
 
+      <!-- 导出按钮 -->
+      <div class="mb-4 flex justify-end">
+        <Button type="primary" @click="exportInviteCodeToExcel">
+          <template #icon><DownloadOutlined /></template>
+          导出Excel
+        </Button>
+      </div>
+
       <!-- 表格区域 -->
       <Table
         :loading="loading"
@@ -416,13 +530,26 @@ onMounted(() => {
         centered
         width="700px"
       >
-        <div v-if="currentInviteCode" class="mb-4">
-          <span class="font-bold">邀请码：</span>{{ currentInviteCode }}
+        <div class="mb-4 flex items-center justify-between">
+          <div>
+            <div v-if="currentInviteCode" class="mb-2">
+              <span class="font-bold">邀请码：</span>{{ currentInviteCode }}
+            </div>
+            <div>
+              <span class="font-bold">邀请人数：</span
+              >{{ inviteHistoryList.length }}
+            </div>
+          </div>
+
+          <!-- 导出邀请历史按钮 -->
+          <div v-if="inviteHistoryList.length > 0">
+            <Button type="primary" size="small" @click="exportHistoryToExcel">
+              <template #icon><DownloadOutlined /></template>
+              导出历史记录
+            </Button>
+          </div>
         </div>
-        <div class="mb-4">
-          <span class="font-bold">邀请人数：</span
-          >{{ inviteHistoryList.length }}
-        </div>
+
         <Table
           :loading="historyLoading"
           :columns="historyColumns"
