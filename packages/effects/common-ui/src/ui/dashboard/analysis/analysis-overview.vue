@@ -4,7 +4,6 @@ import type { AnalysisOverviewItem } from '../typing';
 import {
   Card,
   CardContent,
-  CardFooter,
   CardHeader,
   CardTitle,
   VbenCountToAnimator,
@@ -25,7 +24,7 @@ withDefaults(defineProps<Props>(), {
 </script>
 
 <template>
-  <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+  <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
     <template v-for="item in items" :key="item.title">
       <Card :title="item.title" class="w-full">
         <CardHeader>
@@ -41,14 +40,6 @@ withDefaults(defineProps<Props>(), {
           />
           <VbenIcon :icon="item.icon" class="size-8 flex-shrink-0" />
         </CardContent>
-        <CardFooter class="justify-between">
-          <span>{{ item.totalTitle }}</span>
-          <VbenCountToAnimator
-            :end-val="item.totalValue"
-            :start-val="1"
-            prefix=""
-          />
-        </CardFooter>
       </Card>
     </template>
   </div>
