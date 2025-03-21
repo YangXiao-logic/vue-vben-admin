@@ -8,8 +8,12 @@
         <option name="portBindings">
           <list>
             <DockerPortBindingImpl>
-              <option name="containerPort" value="8008" />
-              <option name="hostPort" value="8008" />
+              <option name="containerPort" value="80" />
+              <option name="hostPort" value="80" />
+            </DockerPortBindingImpl>
+            <DockerPortBindingImpl>
+              <option name="containerPort" value="443" />
+              <option name="hostPort" value="443" />
             </DockerPortBindingImpl>
           </list>
         </option>
