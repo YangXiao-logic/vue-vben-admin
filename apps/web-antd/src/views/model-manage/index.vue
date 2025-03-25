@@ -56,6 +56,7 @@ const columns = [
 const fetchData = async () => {
   loading.value = true;
   try {
+    failureRates.value = [];
     const data = await getModelFailureRates(hours.value);
     failureRates.value = data || [];
   } catch (error) {
