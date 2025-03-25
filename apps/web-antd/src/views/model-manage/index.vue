@@ -25,28 +25,16 @@ const columns = [
     title: '总请求数',
     dataIndex: 'totalRequests',
     key: 'totalRequests',
-    sorter: (
-      a: ModelManageApi.ModelFailureRate,
-      b: ModelManageApi.ModelFailureRate,
-    ) => (a.totalRequests || 0) - (b.totalRequests || 0),
   },
   {
     title: '成功数',
     dataIndex: 'successCount',
     key: 'successCount',
-    sorter: (
-      a: ModelManageApi.ModelFailureRate,
-      b: ModelManageApi.ModelFailureRate,
-    ) => (a.successCount || 0) - (b.successCount || 0),
   },
   {
     title: '失败数',
     dataIndex: 'failureCount',
     key: 'failureCount',
-    sorter: (
-      a: ModelManageApi.ModelFailureRate,
-      b: ModelManageApi.ModelFailureRate,
-    ) => (a.failureCount || 0) - (b.failureCount || 0),
   },
   {
     title: '失败率',
@@ -56,10 +44,6 @@ const columns = [
       if (text === null) return '-';
       return `${text.toFixed(2)}%`;
     },
-    sorter: (
-      a: ModelManageApi.ModelFailureRate,
-      b: ModelManageApi.ModelFailureRate,
-    ) => (a.failureRate || 0) - (b.failureRate || 0),
   },
   {
     title: '环境',
