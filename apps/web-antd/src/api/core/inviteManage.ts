@@ -23,6 +23,7 @@ export namespace InviteManageApi {
     createTime?: string | null;
     toUserAccount?: string | null;
     vipRechargeType?: string | null;
+    firstPayAmount?: number | null;
   }
 
   /** 添加特殊邀请码请求参数 */
