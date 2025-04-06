@@ -5,6 +5,7 @@ import {
   UserOutlined,
   TeamOutlined,
   RobotOutlined,
+  NotificationOutlined,
 } from '@ant-design/icons-vue';
 
 const routes: RouteRecordRaw[] = [
@@ -42,6 +43,15 @@ const routes: RouteRecordRaw[] = [
     meta: {
       title: '模型管理',
       icon: RobotOutlined,
+    },
+  },
+  {
+    path: '/announcement-manage',
+    name: 'AnnouncementManage',
+    component: () => import('#/views/announcement-manage/index.vue'),
+    meta: {
+      title: '公告管理',
+      icon: NotificationOutlined,
     },
   },
 ];
