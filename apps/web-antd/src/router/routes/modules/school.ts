@@ -4,6 +4,8 @@ import {
   BookOutlined,
   UserOutlined,
   TeamOutlined,
+  RobotOutlined,
+  NotificationOutlined,
 } from '@ant-design/icons-vue';
 
 const routes: RouteRecordRaw[] = [
@@ -32,6 +34,24 @@ const routes: RouteRecordRaw[] = [
     meta: {
       title: '邀请管理',
       icon: TeamOutlined,
+    },
+  },
+  {
+    path: '/model-manage',
+    name: 'ModelManage',
+    component: () => import('#/views/model-manage/index.vue'),
+    meta: {
+      title: '模型管理',
+      icon: RobotOutlined,
+    },
+  },
+  {
+    path: '/announcement-manage',
+    name: 'AnnouncementManage',
+    component: () => import('#/views/announcement-manage/index.vue'),
+    meta: {
+      title: '公告管理',
+      icon: NotificationOutlined,
     },
   },
 ];

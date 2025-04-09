@@ -24,7 +24,7 @@ const { apiURL, authURL } = useAppConfig(import.meta.env, import.meta.env.PROD);
 function createRequestClient(baseURL: string, options?: RequestClientOptions) {
   const client = new RequestClient({
     ...options,
-    baseURL,
+    baseURL: `/api`,
   });
 
   /**

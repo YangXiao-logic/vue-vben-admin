@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import type { AnalysisOverviewItem } from '@vben/common-ui';
 import type { TabOption } from '@vben/types';
+import { ref, onMounted, computed } from 'vue';
 
 import {
   AnalysisChartCard,
@@ -13,52 +14,74 @@ import {
   SvgCardIcon,
   SvgDownloadIcon,
 } from '@vben/icons';
+import { getAnalyticsApi } from '#/api/core/analytics';
 
 import AnalyticsTrends from './analytics-trends.vue';
-import AnalyticsVisitsData from './analytics-visits-data.vue';
-import AnalyticsVisitsSales from './analytics-visits-sales.vue';
-import AnalyticsVisitsSource from './analytics-visits-source.vue';
-import AnalyticsVisits from './analytics-visits.vue';
 
-const overviewItems: AnalysisOverviewItem[] = [
+const analyticsData = ref({
+  todayRegisterCount: 0,
+  todayPayAmount: 0,
+  todayPublicUploadFileCount: 0,
+  todayPrivateUploadFileCount: 0,
+  todayChatCount: 0,
+});
+
+const loading = ref(true);
+
+const fetchAnalyticsData = async () => {
+  try {
+    loading.value = true;
+    const response = await getAnalyticsApi();
+    analyticsData.value = {
+      todayRegisterCount: response.todayRegisterCount || 0,
+      todayPayAmount: response.todayPayAmount || 0,
+      todayPublicUploadFileCount: response.todayPublicUploadFileCount || 0,
+      todayPrivateUploadFileCount: response.todayPrivateUploadFileCount || 0,
+      todayChatCount: response.todayChatCount || 0,
+    };
+  } catch (error) {
+    console.log(error);
+  } finally {
+    loading.value = false;
+  }
+};
+
+onMounted(() => {
+  fetchAnalyticsData();
+});
+
+const overviewItems = computed(() => [
   {
     icon: SvgCardIcon,
-    title: '用户量',
-    totalTitle: '总用户量',
-    totalValue: 120_000,
-    value: 2000,
+    title: '支付额',
+    value: analyticsData.value.todayPayAmount,
   },
   {
     icon: SvgCakeIcon,
-    title: '访问量',
-    totalTitle: '总访问量',
-    totalValue: 500_000,
-    value: 20_000,
+    title: '注册量',
+    value: analyticsData.value.todayRegisterCount,
   },
   {
     icon: SvgDownloadIcon,
-    title: '下载量',
-    totalTitle: '总下载量',
-    totalValue: 120_000,
-    value: 8000,
+    title: '公共库上传',
+    value: analyticsData.value.todayPublicUploadFileCount,
+  },
+  {
+    icon: SvgDownloadIcon,
+    title: '私有库上传',
+    value: analyticsData.value.todayPrivateUploadFileCount,
   },
   {
     icon: SvgBellIcon,
-    title: '使用量',
-    totalTitle: '总使用量',
-    totalValue: 50_000,
-    value: 5000,
+    title: '对话量',
+    value: analyticsData.value.todayChatCount,
   },
-];
+]);
 
 const chartTabs: TabOption[] = [
   {
-    label: '流量趋势',
+    label: '支付数据趋势',
     value: 'trends',
-  },
-  {
-    label: '月访问量',
-    value: 'visits',
   },
 ];
 </script>
@@ -70,21 +93,6 @@ const chartTabs: TabOption[] = [
       <template #trends>
         <AnalyticsTrends />
       </template>
-      <template #visits>
-        <AnalyticsVisits />
-      </template>
     </AnalysisChartsTabs>
-
-    <div class="mt-5 w-full md:flex">
-      <AnalysisChartCard class="mt-5 md:mr-4 md:mt-0 md:w-1/3" title="访问数量">
-        <AnalyticsVisitsData />
-      </AnalysisChartCard>
-      <AnalysisChartCard class="mt-5 md:mr-4 md:mt-0 md:w-1/3" title="访问来源">
-        <AnalyticsVisitsSource />
-      </AnalysisChartCard>
-      <AnalysisChartCard class="mt-5 md:mt-0 md:w-1/3" title="访问来源">
-        <AnalyticsVisitsSales />
-      </AnalysisChartCard>
-    </div>
   </div>
 </template>

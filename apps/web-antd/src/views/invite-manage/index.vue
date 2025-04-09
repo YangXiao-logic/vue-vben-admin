@@ -134,9 +134,9 @@ const handleCopyInviteCode = (record: InviteManageApi.SpecialInviteCode) => {
 
   // 使用 navigator.clipboard API 复制到剪贴板
   navigator.clipboard
-    .writeText(record.inviteCode)
+    .writeText(`https://friesai.cn/login?inviteCode=${record.inviteCode}`)
     .then(() => {
-      message.success('邀请码已复制到剪贴板');
+      message.success('已复制到剪贴板');
     })
     .catch(() => {
       message.error('复制失败，请手动复制');
@@ -285,7 +285,7 @@ const columns = [
           {
             default: () => [
               h(CopyOutlined, { style: { marginRight: '4px' } }),
-              '复制邀请码',
+              '复制邀请链接',
             ],
           },
         ),
@@ -334,6 +334,12 @@ const historyColumns = [
         { default: () => getVipRechargeTypeText(text) },
       );
     },
+  },
+  {
+    title: '首笔支付金额',
+    dataIndex: 'firstPayAmount',
+    key: 'firstPayAmount',
+    customRender: ({ text }: { text: string | null }) => text || '-',
   },
 ];
 
@@ -538,6 +544,15 @@ onMounted(() => {
             <div>
               <span class="font-bold">邀请人数：</span
               >{{ inviteHistoryList.length }}
+            </div>
+            <div>
+              <span class="font-bold">累计邀请首充金额：</span
+              >{{
+                inviteHistoryList.reduce(
+                  (acc, curr) => acc + (curr.firstPayAmount || 0),
+                  0,
+                )
+              }}
             </div>
           </div>
 

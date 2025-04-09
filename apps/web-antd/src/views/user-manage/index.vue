@@ -23,6 +23,9 @@ import {
   getUserListApi,
   UserManageApi,
 } from '#/api/core/userManage';
+import type { SchoolApi } from '#/api/core/school';
+import { getSchoolListApi } from '#/api/core/school';
+
 import { downloadFileFromBlobPart } from '@vben/utils';
 import { formatDateTime } from '@vben/utils';
 
@@ -105,6 +108,8 @@ const inviteHistoryModalVisible = ref(false);
 const inviteHistoryLoading = ref(false);
 const inviteHistoryData = ref<UserManageApi.InviteHistoryVo[]>([]);
 const selectedUserIdForInviteHistory = ref('');
+
+const schoolList = ref<SchoolApi.School[]>([]);
 
 // ===== 工具函数 =====
 // 移除对象中的空值
@@ -247,6 +252,17 @@ const handlePurchaseTimeChange = (dates: any) => {
   } else {
     delete searchForm.value.purchaseStartTime;
     delete searchForm.value.purchaseEndTime;
+  }
+};
+
+// 获取学校列表
+const fetchSchoolList = async () => {
+  try {
+    loading.value = true;
+    const data = await getSchoolListApi();
+    schoolList.value = data;
+  } finally {
+    loading.value = false;
   }
 };
 
@@ -573,6 +589,7 @@ const vipTypeOptions = [
 // 初始化加载
 onMounted(() => {
   fetchUserList();
+  fetchSchoolList();
 });
 </script>
 
@@ -603,13 +620,21 @@ onMounted(() => {
           @pressEnter="handleSearch"
           allowClear
         />
-        <Input
+        <Select
           v-model:value="searchForm.school"
           placeholder="学校"
-          style="width: 160px"
-          @pressEnter="handleSearch"
+          @change="handleSearch"
           allowClear
-        />
+        >
+          <Select.Option
+            v-for="school in schoolList"
+            :key="school.schoolId"
+            :value="school.name"
+          >
+            {{ school.name }}
+          </Select.Option>
+        </Select>
+
         <Select
           v-model:value="searchForm.channelEnum"
           style="width: 120px"
