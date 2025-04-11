@@ -54,6 +54,15 @@ const routes: RouteRecordRaw[] = [
       icon: NotificationOutlined,
     },
   },
+  {
+    path: '/redemption-code-manage',
+    name: 'RedemptionCodeManage',
+    component: () => import('#/views/redemption-code/index.vue'),
+    meta: {
+      title: '兑换码管理',
+      icon: NotificationOutlined,
+    },
+  },
 ];
 
 export default routes;
