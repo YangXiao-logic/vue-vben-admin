@@ -1,18 +1,19 @@
 <script lang="ts" setup>
 import { getPayChartApi, AnalyticsManageApi } from '#/api/core/analytics';
-import { ref, onMounted } from 'vue';
-import { DatePicker, Radio } from 'ant-design-vue';
+import { ref, onMounted, computed } from 'vue';
+import { DatePicker } from 'ant-design-vue';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
 
 const loading = ref(false);
-const monthlyTotal = ref(0);
+const vipTotal = ref(0);
+const pdfTotal = ref(0);
 
 // 当前选择的月份
 const currentMonth = ref<Dayjs>(dayjs());
 
-// 支付类型
-const payType = ref(AnalyticsManageApi.PayType.VIP_RECHARGE);
+// 计算总金额
+const totalAmount = computed(() => vipTotal.value + pdfTotal.value);
 
 const fetchMonthlyData = async (date: Dayjs) => {
   try {
@@ -24,12 +25,28 @@ const fetchMonthlyData = async (date: Dayjs) => {
     const params = {
       startDate: startDate.format('YYYY-MM-DDT00:00:00Z'),
       endDate: endDate.format('YYYY-MM-DDT23:59:59Z'),
-      payType: payType.value,
     };
 
-    const response = await getPayChartApi(params);
-    // 计算月度总额
-    monthlyTotal.value = (response.dataPoints || []).reduce(
+    // 并行请求两个接口
+    const [vipResponse, pdfResponse] = await Promise.all([
+      getPayChartApi({
+        ...params,
+        payType: AnalyticsManageApi.PayType.VIP_RECHARGE,
+      }),
+      getPayChartApi({
+        ...params,
+        payType: AnalyticsManageApi.PayType.PDF_PACKAGE,
+      }),
+    ]);
+
+    // 计算会员充值总额
+    vipTotal.value = (vipResponse.dataPoints || []).reduce(
+      (sum, item) => sum + (item.amount || 0),
+      0,
+    );
+
+    // 计算页数充值总额
+    pdfTotal.value = (pdfResponse.dataPoints || []).reduce(
       (sum, item) => sum + (item.amount || 0),
       0,
     );
@@ -49,12 +66,6 @@ const handleMonthChange = (value: string | Dayjs, dateString: string) => {
   }
 };
 
-// 支付类型变化处理
-const handlePayTypeChange = (e: any) => {
-  payType.value = e.target.value;
-  fetchMonthlyData(currentMonth.value);
-};
-
 onMounted(() => {
   fetchMonthlyData(currentMonth.value);
 });
@@ -72,22 +83,25 @@ onMounted(() => {
           format="YYYY年MM月"
         />
       </div>
-
-      <Radio.Group :value="payType" @change="handlePayTypeChange">
-        <Radio.Button :value="AnalyticsManageApi.PayType.VIP_RECHARGE"
-          >会员充值</Radio.Button
-        >
-        <Radio.Button :value="AnalyticsManageApi.PayType.PDF_PACKAGE"
-          >页数充值</Radio.Button
-        >
-      </Radio.Group>
     </div>
 
     <div class="total-container">
       <div v-if="loading" class="loading">加载中...</div>
-      <div v-else class="total-amount">
-        <div class="label">{{ currentMonth.format('YYYY年MM月') }}销售总额</div>
-        <div class="amount">¥{{ monthlyTotal.toLocaleString('zh-CN') }}</div>
+      <div v-else class="amounts-grid">
+        <div class="amount-card total">
+          <div class="label">
+            {{ currentMonth.format('YYYY年MM月') }}销售总额
+          </div>
+          <div class="amount">¥{{ totalAmount.toLocaleString('zh-CN') }}</div>
+        </div>
+        <div class="amount-card sub">
+          <div class="label">会员充值总额</div>
+          <div class="amount">¥{{ vipTotal.toLocaleString('zh-CN') }}</div>
+        </div>
+        <div class="amount-card sub">
+          <div class="label">页数充值总额</div>
+          <div class="amount">¥{{ pdfTotal.toLocaleString('zh-CN') }}</div>
+        </div>
       </div>
     </div>
   </div>
@@ -101,15 +115,8 @@ onMounted(() => {
 
   .filter-container {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-    gap: 16px;
-
-    @media (max-width: 768px) {
-      flex-direction: column;
-      align-items: flex-start;
-    }
+    justify-content: center;
+    margin-bottom: 32px;
   }
 
   .total-container {
@@ -122,19 +129,57 @@ onMounted(() => {
       color: var(--high-text-color);
     }
 
-    .total-amount {
-      text-align: center;
+    .amounts-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      width: 100%;
+      max-width: 900px;
 
-      .label {
-        font-size: 16px;
-        color: var(--high-text-color);
-        margin-bottom: 16px;
+      @media (max-width: 900px) {
+        grid-template-columns: 1fr;
       }
 
-      .amount {
-        font-size: 36px;
-        font-weight: bold;
-        color: var(--ant-primary-color);
+      .amount-card {
+        background: white;
+        padding: 24px;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        text-align: center;
+        transition: box-shadow 0.2s;
+        position: relative;
+
+        &.total {
+          background: var(--bg-hover-color);
+          box-shadow: 0 4px 16px rgba(137, 91, 255, 0.08);
+          border: 2px solid var(--ant-primary-color);
+          .label {
+            font-size: 18px;
+            color: var(--high-text-color);
+            margin-bottom: 18px;
+            font-weight: 600;
+          }
+          .amount {
+            font-size: 46px;
+            font-weight: bold;
+            color: var(--ant-primary-color);
+            letter-spacing: 2px;
+          }
+        }
+        &.sub {
+          background: var(--bg-light-color);
+          .label {
+            font-size: 15px;
+            color: var(--high-text-color);
+            margin-bottom: 10px;
+            font-weight: 500;
+          }
+          .amount {
+            font-size: 28px;
+            font-weight: 600;
+            color: var(--ant-primary-color);
+          }
+        }
       }
     }
   }
