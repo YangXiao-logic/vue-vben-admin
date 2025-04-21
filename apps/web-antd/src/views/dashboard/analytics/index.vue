@@ -17,6 +17,7 @@ import {
 import { getAnalyticsApi } from '#/api/core/analytics';
 
 import AnalyticsTrends from './analytics-trends.vue';
+import AnalyticsUserGrowth from './analytics-user-growth.vue';
 
 const analyticsData = ref({
   todayRegisterCount: 0,
@@ -83,6 +84,10 @@ const chartTabs: TabOption[] = [
     label: '支付数据趋势',
     value: 'trends',
   },
+  {
+    label: '用户增长趋势',
+    value: 'userGrowth',
+  },
 ];
 </script>
 
@@ -92,6 +97,9 @@ const chartTabs: TabOption[] = [
     <AnalysisChartsTabs :tabs="chartTabs" class="mt-5">
       <template #trends>
         <AnalyticsTrends />
+      </template>
+      <template #userGrowth>
+        <AnalyticsUserGrowth />
       </template>
     </AnalysisChartsTabs>
   </div>

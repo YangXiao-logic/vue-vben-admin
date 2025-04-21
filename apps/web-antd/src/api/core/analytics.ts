@@ -34,6 +34,20 @@ export namespace AnalyticsManageApi {
   export interface PayChartResponse {
     dataPoints?: PaymentDataPoint[] | null;
   }
+
+  /** 用户增长请求参数 */
+  export interface UserGrowthParams {
+    startDate?: string | Date;
+    endDate?: string | Date;
+  }
+
+  /** 用户增长响应 */
+  export type UserGrowthResponse = UserGrowth[];
+  export interface UserGrowth {
+    date: string;
+    newUsers: number;
+    totalUsers: number;
+  }
 }
 
 /**
@@ -53,6 +67,15 @@ export async function getPayChartApi(
 ) {
   return requestClient.post<AnalyticsManageApi.PayChartResponse>(
     '/analytics-manage/pay-chart',
+    params,
+  );
+}
+
+export async function getUserGrowth(
+  params: AnalyticsManageApi.UserGrowthParams,
+) {
+  return requestClient.post<AnalyticsManageApi.UserGrowthResponse>(
+    '/analytics-manage/user-growth',
     params,
   );
 }
