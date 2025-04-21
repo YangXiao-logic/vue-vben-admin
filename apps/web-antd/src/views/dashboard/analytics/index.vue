@@ -18,6 +18,7 @@ import { getAnalyticsApi } from '#/api/core/analytics';
 
 import AnalyticsTrends from './analytics-trends.vue';
 import AnalyticsUserGrowth from './analytics-user-growth.vue';
+import AnalyticsMonthlySales from './analytics-monthly-sales.vue';
 
 const analyticsData = ref({
   todayRegisterCount: 0,
@@ -88,6 +89,10 @@ const chartTabs: TabOption[] = [
     label: '用户增长趋势',
     value: 'userGrowth',
   },
+  {
+    label: '月度销售总额',
+    value: 'monthlySales',
+  },
 ];
 </script>
 
@@ -100,6 +105,9 @@ const chartTabs: TabOption[] = [
       </template>
       <template #userGrowth>
         <AnalyticsUserGrowth />
+      </template>
+      <template #monthlySales>
+        <AnalyticsMonthlySales />
       </template>
     </AnalysisChartsTabs>
   </div>
